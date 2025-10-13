@@ -1,7 +1,7 @@
 ---
 - name: Executar backup RMAN completo do Oracle
   hosts: all
-  become: no
+  become: yes
   become_user: oracle
   vars:
     oracle_sid: "{{ oracle_sid | default('odb1') }}"
