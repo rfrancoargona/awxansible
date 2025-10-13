@@ -1,0 +1,43 @@
+---
+- name: Executar backup RMAN completo do Oracle
+  hosts: all
+  become: yes
+  become_user: oracle
+  vars:
+    oracle_sid: "{{ oracle_sid | default('odb1') }}"
+    backup_dir: "{{ backup_dir | default('/backup/oracle/odb1') }}"
+    rman_script: "{{ rman_script | default('/home/oracle/backup_full.rman') }}"
+    log_file: "{{ backup_dir }}/rman_backup_{{ ansible_date_time.date }}.log"
+
+  tasks:
+    - name: Criar diretório de backup se não existir
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        owner: oracle
+        group: oinstall
+        mode: '0755'
+
+    - name: Criar script RMAN
+      copy:
+        dest: "{{ rman_script }}"
+        content: |
+          RUN {
+            ALLOCATE CHANNEL c1 DEVICE TYPE DISK FORMAT '{{ backup_dir }}/full_{{ ansible_date_time.date }}_%U.bkp';
+            BACKUP AS COMPRESSED BACKUPSET DATABASE PLUS ARCHIVELOG;
+            DELETE NOPROMPT OBSOLETE;
+            RELEASE CHANNEL c1;
+          }
+        owner: oracle
+        group: oinstall
+        mode: '0750'
+
+    - name: Executar backup RMAN
+      shell: |
+        export ORACLE_SID={{ oracle_sid }}
+        export ORAENV_ASK=NO
+        . /usr/local/bin/oraenv >/dev/null 2>&1
+        rman target / log='{{ log_file }}' cmdfile='{{ rman_script }}'
+      args:
+        executable: /bin/bash
+ZZ
