@@ -25,7 +25,7 @@
 
     - name: Execute RMAN backup
       shell: |
-        rman target / <<EOF
+        /u01/app/oracle/product/19.0.0/dbhome_1/bin/rman target / <<EOF
         RUN {
         ALLOCATE CHANNEL d1 DEVICE TYPE DISK FORMAT '{{ backup_destination }}/%U';
         BACKUP DATABASE PLUS ARCHIVELOG DELETE INPUT;
