@@ -1,7 +1,7 @@
 ---
 - name: Backup de Banco de Dados Oracle ODB1
   hosts: all
-  become: yes  # Run tasks with elevated privileges (e.g., as oracle user)
+  become: no  # Run tasks with elevated privileges (e.g., as oracle user)
   vars:
     oracle_sid: odb1  # Replace with your Oracle SID
     backup_destination: /backup/oracle/odb1  # Replace with your desired backup path
