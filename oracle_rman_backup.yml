@@ -4,9 +4,9 @@
   become: yes
   become_user: oracle
   vars:
-    oracle_sid: "{{ oracle_sid | default('odb1') }}"
-    backup_dir: "{{ backup_dir | default('/backup/oracle/odb1') }}"
-    rman_script: "{{ rman_script | default('/home/oracle/backup_full.rman') }}"
+    oracle_sid: "odb1"
+    backup_dir: "/backup/oracle/odb1"
+    rman_script: "/home/oracle/backup_full.rman"
     log_file: "{{ backup_dir }}/rman_backup_{{ ansible_date_time.date }}.log"
 
   tasks:
@@ -40,4 +40,3 @@
         rman target / log='{{ log_file }}' cmdfile='{{ rman_script }}'
       args:
         executable: /bin/bash
-
