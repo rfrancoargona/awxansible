@@ -3,7 +3,7 @@
   gather_facts: no
   tasks:
     - name: Executar hostname
-      command: hostname , ls -l 
+      command: ifconfig -a
       register: saida
 
     - name: Exibir o resultado
