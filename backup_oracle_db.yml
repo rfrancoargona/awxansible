@@ -14,7 +14,12 @@
         export PATH=$ORACLE_HOME/bin:$PATH
       args:
         executable: /bin/bash
+        register: enviroments_output
 
+    - name: Display Variaveis de Ambiente
+      debug:
+        var: enviroments_output.stdout_lines
+        
     - name: Create backup destination directory if it doesn't exist
       file:
         path: "{{ backup_destination }}"
