@@ -14,12 +14,7 @@
         export PATH=$ORACLE_HOME/bin:$PATH
       args:
         executable: /bin/bash
-        register: enviroments_output
-
-    - name: Display Variaveis de Ambiente
-      debug:
-        msg: enviroments_output.stdout_lines
-        
+       
     - name: Create backup destination directory if it doesn't exist
       file:
         path: "/backup/oracle/odb1"
@@ -43,4 +38,4 @@
 
     - name: Display RMAN backup output
       debug:
-        msg: rman_output.stdout_lines
+        var: rman_output.stdout_lines
