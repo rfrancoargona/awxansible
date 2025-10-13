@@ -1,7 +1,7 @@
 ---
 - name: Executar backup RMAN completo do Oracle
   hosts: all
-  become: yes
+  become: no
   become_user: oracle
   vars:
     oracle_sid: "{{ oracle_sid | default('odb1') }}"
@@ -40,4 +40,4 @@
         rman target / log='{{ log_file }}' cmdfile='{{ rman_script }}'
       args:
         executable: /bin/bash
-ZZ
+
