@@ -9,7 +9,7 @@
   tasks:
     - name: Set Oracle environment variables
       shell: |
-        export ORACLE_HOME=/path/to/oracle/home  # Replace with your Oracle Home
+        export ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1  # Replace with your Oracle Home
         export ORACLE_SID={{ oracle_sid }}
         export PATH=$ORACLE_HOME/bin:$PATH
       args:
