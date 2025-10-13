@@ -1,6 +1,6 @@
 ---
-- name: Backup Oracle Database using RMAN
-  hosts: oracle_servers
+- name: Backup de Banco de Dados Oracle ODB1
+  hosts: all
   become: yes  # Run tasks with elevated privileges (e.g., as oracle user)
   vars:
     oracle_sid: odb1  # Replace with your Oracle SID
