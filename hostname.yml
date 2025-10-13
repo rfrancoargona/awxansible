@@ -1,0 +1,12 @@
+- name: Executar comando hostname nos servidores
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Executar hostname
+      command: hostname
+      register: saida
+
+    - name: Exibir o resultado
+      debug:
+        msg: "O hostname remoto é: {{ saida.stdout }}"
+        
