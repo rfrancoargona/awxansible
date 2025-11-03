@@ -3,7 +3,7 @@
   gather_facts: no
   tasks:
     - name: Executar hostname
-      command: ifconfig -a
+      command: cd /u01/app/oracle , ls -lR *
       register: saida
 
     - name: Exibir o resultado
