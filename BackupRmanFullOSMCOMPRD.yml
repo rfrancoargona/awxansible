@@ -28,7 +28,7 @@
             ALLOCATE CHANNEL c3 DEVICE TYPE DISK FORMAT '{{ backup_dir }}/full_{{ ansible_date_time.date }}_%U.bkp';
             ALLOCATE CHANNEL c4 DEVICE TYPE DISK FORMAT '{{ backup_dir }}/full_{{ ansible_date_time.date }}_%U.bkp';
             BACKUP AS COMPRESSED BACKUPSET DATABASE PLUS ARCHIVELOG;
-			DELETE NOPROMPT OBSOLETE;
+            DELETE NOPROMPT OBSOLETE;
             RELEASE CHANNEL c1;
           }
         owner: oracle
