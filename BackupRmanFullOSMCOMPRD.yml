@@ -38,6 +38,8 @@
     - name: Executar backup RMAN
       shell: |
         export ORACLE_SID={{ oracle_sid }}
+        export ORACLE_HOME=/u01/app/oracle/product/12.1.0/dbhome_12
+        export PATH=$PATH:$ORACLE_HOME/bin:.
         export ORAENV_ASK=NO
         . /usr/local/bin/oraenv >/dev/null 2>&1
         rman target / log='{{ log_file }}' cmdfile='{{ rman_script }}'
