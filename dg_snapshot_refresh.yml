@@ -1,0 +1,71 @@
+- name: Dataguard Snapshot Refresh
+  hosts: standby
+  become: yes
+  become_user: oracle
+
+  vars:
+    oracle_sid: sbprdbcv
+
+  tasks:
+
+  - name: Convert snapshot to physical
+    shell: |
+      export ORACLE_SID={{ oracle_sid }}
+      sqlplus -s / as sysdba <<EOF
+      shutdown immediate;
+      startup mount;
+      alter database convert to physical standby;
+      shutdown immediate;
+      startup mount;
+      exit;
+      EOF
+
+  - name: Start recovery
+    shell: |
+      export ORACLE_SID={{ oracle_sid }}
+      sqlplus -s / as sysdba <<EOF
+      alter database recover managed standby database using current logfile disconnect;
+      exit;
+      EOF
+
+  - name: Wait sync loop
+    shell: |
+      export ORACLE_SID={{ oracle_sid }}
+      sqlplus -s / as sysdba <<EOF
+      set heading off
+      select case when count(*) = 0 then 'SYNC'
+      else 'WAIT'
+      end
+      from v\\$archive_gap;
+      exit;
+      EOF
+    register: sync_status
+    until: "'SYNC' in sync_status.stdout"
+    retries: 90
+    delay: 60
+
+  - name: Cancel recovery
+    shell: |
+      export ORACLE_SID={{ oracle_sid }}
+      sqlplus -s / as sysdba <<EOF
+      alter database recover managed standby database cancel;
+      exit;
+      EOF
+
+  - name: Convert to snapshot
+    shell: |
+      export ORACLE_SID={{ oracle_sid }}
+      sqlplus -s / as sysdba <<EOF
+      alter database convert to snapshot standby;
+      shutdown immediate;
+      startup;
+      exit;
+      EOF
+
+  - name: Open database
+    shell: |
+      export ORACLE_SID={{ oracle_sid }}
+      sqlplus -s / as sysdba <<EOF
+      alter database open;
+      exit;
+      EOF
