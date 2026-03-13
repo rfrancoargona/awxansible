@@ -40,7 +40,7 @@
       sqlplus -s / as sysdba <<EOF
       set heading off
       set feedback off
-      select status from v$managed_standby where process='MRP0';
+      select status from v\$managed_standby where process='MRP0';
       exit;
       EOF
     register: mrp_status
