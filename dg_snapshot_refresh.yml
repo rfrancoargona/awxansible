@@ -10,7 +10,7 @@
 
   - name: Convert snapshot to physical
     shell: |
-	  source ~/.bash_profile
+      source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
       sqlplus -s / as sysdba <<EOF
       shutdown immediate;
