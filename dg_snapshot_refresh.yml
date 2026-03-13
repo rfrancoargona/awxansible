@@ -39,13 +39,13 @@
       select case when count(*) = 0 then 'SYNC'
       else 'WAIT'
       end
-      from v\\$archive_gap;
+      from v$archive_gap;
       exit;
       EOF
     register: sync_status
     until: "'SYNC' in sync_status.stdout"
     retries: 120
-    delay: 10
+    delay: 2
 
   - name: Cancel recovery
     shell: |
