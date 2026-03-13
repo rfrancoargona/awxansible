@@ -12,6 +12,7 @@
     shell: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
+
       sqlplus -s / as sysdba <<EOF
       shutdown immediate;
       startup mount;
@@ -25,32 +26,33 @@
     shell: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
+
       sqlplus -s / as sysdba <<EOF
       alter database recover managed standby database using current logfile disconnect;
       exit;
       EOF
 
-  - name: Wait sync loop
+  - name: Wait for recovery finish
     shell: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
+
       sqlplus -s / as sysdba <<EOF
       set heading off
-      select case when count(*) = 0 then 'SYNC'
-      else 'WAIT'
-      end
-      from v$archive_gap;
+      set feedback off
+      select status from v$managed_standby where process='MRP0';
       exit;
       EOF
-    register: sync_status
-    until: "'SYNC' in sync_status.stdout"
-    retries: 120
+    register: mrp_status
+    until: "'WAIT_FOR_LOG' in mrp_status.stdout or 'IDLE' in mrp_status.stdout"
+    retries: 90
     delay: 2
 
   - name: Cancel recovery
     shell: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
+
       sqlplus -s / as sysdba <<EOF
       alter database recover managed standby database cancel;
       exit;
@@ -60,18 +62,10 @@
     shell: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
+
       sqlplus -s / as sysdba <<EOF
       alter database convert to snapshot standby;
       shutdown immediate;
       startup;
-      exit;
-      EOF
-
-  - name: Open database
-    shell: |
-      source ~/.bash_profile
-      export ORACLE_SID={{ oracle_sid }}
-      sqlplus -s / as sysdba <<EOF
-      alter database open;
       exit;
       EOF
