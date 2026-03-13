@@ -10,6 +10,7 @@
 
   - name: Convert snapshot to physical
     shell: |
+	  source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
       sqlplus -s / as sysdba <<EOF
       shutdown immediate;
@@ -22,7 +23,8 @@
 
   - name: Start recovery
     shell: |
-      export ORACLE_SID={{ oracle_sid }}
+      source ~/.bash_profile
+	  export ORACLE_SID={{ oracle_sid }}
       sqlplus -s / as sysdba <<EOF
       alter database recover managed standby database using current logfile disconnect;
       exit;
@@ -30,7 +32,8 @@
 
   - name: Wait sync loop
     shell: |
-      export ORACLE_SID={{ oracle_sid }}
+      source ~/.bash_profile
+	  export ORACLE_SID={{ oracle_sid }}
       sqlplus -s / as sysdba <<EOF
       set heading off
       select case when count(*) = 0 then 'SYNC'
@@ -41,12 +44,13 @@
       EOF
     register: sync_status
     until: "'SYNC' in sync_status.stdout"
-    retries: 90
-    delay: 60
+    retries: 120
+    delay: 10
 
   - name: Cancel recovery
     shell: |
-      export ORACLE_SID={{ oracle_sid }}
+      source ~/.bash_profile
+	  export ORACLE_SID={{ oracle_sid }}
       sqlplus -s / as sysdba <<EOF
       alter database recover managed standby database cancel;
       exit;
@@ -54,7 +58,8 @@
 
   - name: Convert to snapshot
     shell: |
-      export ORACLE_SID={{ oracle_sid }}
+      source ~/.bash_profile
+	  export ORACLE_SID={{ oracle_sid }}
       sqlplus -s / as sysdba <<EOF
       alter database convert to snapshot standby;
       shutdown immediate;
@@ -64,8 +69,10 @@
 
   - name: Open database
     shell: |
-      export ORACLE_SID={{ oracle_sid }}
+      source ~/.bash_profile
+	  export ORACLE_SID={{ oracle_sid }}
       sqlplus -s / as sysdba <<EOF
       alter database open;
       exit;
       EOF
+	  
