@@ -1,4 +1,4 @@
-- name: Dataguard Snapshot Refresh Enterprise
+- name: Dataguard Snapshot Refresh STABLE
   hosts: standby
   become: yes
   become_user: oracle
@@ -6,15 +6,16 @@
 
   vars:
     oracle_sid: sbprdbcv
+    sync_window_seconds: 4200
     log_file: /tmp/dg_refresh.log
 
   tasks:
 
-  - name: Start DG refresh log
+  - name: Start log header
     shell: |
-      echo "====================================" >> {{ log_file }}
+      echo "=================================" >> {{ log_file }}
       echo "DG REFRESH START $(date)" >> {{ log_file }}
-      echo "====================================" >> {{ log_file }}
+      echo "=================================" >> {{ log_file }}
 
   - name: Convert snapshot to physical standby
     shell: |
@@ -45,40 +46,19 @@
       export ORACLE_SID={{ oracle_sid }}
 
       sqlplus / as sysdba <<EOF >> {{ log_file }}
-      set time on
-      set timing on
-      set echo on
-
       alter database recover managed standby database using current logfile disconnect;
-
       exit;
       EOF
     register: start_recovery
     failed_when: "'ORA-' in start_recovery.stdout"
 
-  - name: Monitor recovery progress
+  - name: Wait fixed sync window (1h10m)
     shell: |
-      source ~/.bash_profile
-      export ORACLE_SID={{ oracle_sid }}
+      echo "Sync window started $(date)" >> {{ log_file }}
+      sleep {{ sync_window_seconds }}
+      echo "Sync window finished $(date)" >> {{ log_file }}
 
-      sqlplus -s / as sysdba <<EOF
-      set heading off
-      set feedback off
-      select process||' '||status||' '||sequence#
-      from v\$managed_standby
-      where process like 'MRP%';
-      exit;
-      EOF
-    register: mrp_status
-    until: "'WAIT_FOR_LOG' in mrp_status.stdout or 'IDLE' in mrp_status.stdout"
-    retries: 90
-    delay: 60
-
-  - name: Log recovery status
-    shell: |
-      echo "Recovery status: {{ mrp_status.stdout }}" >> {{ log_file }}
-
-  - name: Cancel recovery
+  - name: Cancel managed recovery
     shell: |
       set -x
       source ~/.bash_profile
@@ -106,7 +86,7 @@
     register: snapshot_convert
     failed_when: "'ORA-' in snapshot_convert.stdout"
 
-  - name: Validate open mode
+  - name: Validate database open mode
     shell: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
@@ -122,6 +102,7 @@
     shell: |
       echo "Database open mode: {{ open_mode.stdout }}" >> {{ log_file }}
 
-  - name: Finish DG refresh log
+  - name: Finish log
     shell: |
       echo "DG REFRESH END $(date)" >> {{ log_file }}
+      echo "=================================" >> {{ log_file }}
