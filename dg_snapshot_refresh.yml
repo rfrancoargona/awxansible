@@ -1,38 +1,62 @@
-- name: Dataguard Snapshot Refresh
+- name: Dataguard Snapshot Refresh Enterprise
   hosts: standby
   become: yes
   become_user: oracle
+  gather_facts: no
 
   vars:
     oracle_sid: sbprdbcv
+    log_file: /tmp/dg_refresh.log
 
   tasks:
 
-  - name: Convert snapshot to physical
+  - name: Start DG refresh log
     shell: |
+      echo "====================================" >> {{ log_file }}
+      echo "DG REFRESH START $(date)" >> {{ log_file }}
+      echo "====================================" >> {{ log_file }}
+
+  - name: Convert snapshot to physical standby
+    shell: |
+      set -x
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
 
-      sqlplus -s / as sysdba <<EOF
+      sqlplus / as sysdba <<EOF >> {{ log_file }}
+      set time on
+      set timing on
+      set echo on
+
       shutdown immediate;
       startup mount;
       alter database convert to physical standby;
       shutdown immediate;
       startup mount;
+
       exit;
       EOF
+    register: convert_physical
+    failed_when: "'ORA-' in convert_physical.stdout"
 
-  - name: Start recovery
+  - name: Start managed recovery
     shell: |
+      set -x
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
 
-      sqlplus -s / as sysdba <<EOF
+      sqlplus / as sysdba <<EOF >> {{ log_file }}
+      set time on
+      set timing on
+      set echo on
+
       alter database recover managed standby database using current logfile disconnect;
+
       exit;
       EOF
+    register: start_recovery
+    failed_when: "'ORA-' in start_recovery.stdout"
 
-  - name: Wait for recovery finish
+  - name: Monitor recovery progress
     shell: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
@@ -40,32 +64,64 @@
       sqlplus -s / as sysdba <<EOF
       set heading off
       set feedback off
-      select status from v\$managed_standby where process='MRP0';
+      select process||' '||status||' '||sequence#
+      from v\$managed_standby
+      where process like 'MRP%';
       exit;
       EOF
     register: mrp_status
     until: "'WAIT_FOR_LOG' in mrp_status.stdout or 'IDLE' in mrp_status.stdout"
-    retries: 120
-    delay: 120
+    retries: 90
+    delay: 60
+
+  - name: Log recovery status
+    shell: |
+      echo "Recovery status: {{ mrp_status.stdout }}" >> {{ log_file }}
 
   - name: Cancel recovery
     shell: |
+      set -x
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
 
-      sqlplus -s / as sysdba <<EOF
+      sqlplus / as sysdba <<EOF >> {{ log_file }}
       alter database recover managed standby database cancel;
       exit;
       EOF
+    register: cancel_recovery
+    failed_when: "'ORA-' in cancel_recovery.stdout"
 
-  - name: Convert to snapshot
+  - name: Convert to snapshot standby
     shell: |
+      set -x
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
 
-      sqlplus -s / as sysdba <<EOF
+      sqlplus / as sysdba <<EOF >> {{ log_file }}
       alter database convert to snapshot standby;
       shutdown immediate;
       startup;
       exit;
       EOF
+    register: snapshot_convert
+    failed_when: "'ORA-' in snapshot_convert.stdout"
+
+  - name: Validate open mode
+    shell: |
+      source ~/.bash_profile
+      export ORACLE_SID={{ oracle_sid }}
+
+      sqlplus -s / as sysdba <<EOF
+      set heading off
+      select open_mode from v\$database;
+      exit;
+      EOF
+    register: open_mode
+
+  - name: Log open mode
+    shell: |
+      echo "Database open mode: {{ open_mode.stdout }}" >> {{ log_file }}
+
+  - name: Finish DG refresh log
+    shell: |
+      echo "DG REFRESH END $(date)" >> {{ log_file }}
