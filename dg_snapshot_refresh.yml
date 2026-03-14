@@ -45,8 +45,8 @@
       EOF
     register: mrp_status
     until: "'WAIT_FOR_LOG' in mrp_status.stdout or 'IDLE' in mrp_status.stdout"
-    retries: 90
-    delay: 60
+    retries: 120
+    delay: 120
 
   - name: Cancel recovery
     shell: |
