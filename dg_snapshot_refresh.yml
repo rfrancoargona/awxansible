@@ -12,36 +12,27 @@
   tasks:
 
   - name: Start log header
-    shell: |
+    raw: |
       echo "=================================" >> {{ log_file }}
       echo "DG REFRESH START $(date)" >> {{ log_file }}
       echo "=================================" >> {{ log_file }}
 
   - name: Convert snapshot to physical standby
-    shell: |
-      set -x
+    raw: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
 
       sqlplus / as sysdba <<EOF >> {{ log_file }}
-      set time on
-      set timing on
-      set echo on
-
       shutdown immediate;
       startup mount;
       alter database convert to physical standby;
       shutdown immediate;
       startup mount;
-
       exit;
       EOF
-    register: convert_physical
-    failed_when: "'ORA-' in convert_physical.stdout"
 
   - name: Start managed recovery
-    shell: |
-      set -x
+    raw: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
 
@@ -49,18 +40,15 @@
       alter database recover managed standby database using current logfile disconnect;
       exit;
       EOF
-    register: start_recovery
-    failed_when: "'ORA-' in start_recovery.stdout"
 
-  - name: Wait fixed sync window (1h10m)
-    shell: |
+  - name: Wait fixed sync window
+    raw: |
       echo "Sync window started $(date)" >> {{ log_file }}
       sleep {{ sync_window_seconds }}
       echo "Sync window finished $(date)" >> {{ log_file }}
 
   - name: Cancel managed recovery
-    shell: |
-      set -x
+    raw: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
 
@@ -68,12 +56,9 @@
       alter database recover managed standby database cancel;
       exit;
       EOF
-    register: cancel_recovery
-    failed_when: "'ORA-' in cancel_recovery.stdout"
 
   - name: Convert to snapshot standby
-    shell: |
-      set -x
+    raw: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
 
@@ -83,26 +68,19 @@
       startup;
       exit;
       EOF
-    register: snapshot_convert
-    failed_when: "'ORA-' in snapshot_convert.stdout"
 
-  - name: Validate database open mode
-    shell: |
+  - name: Validate open mode
+    raw: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
 
-      sqlplus -s / as sysdba <<EOF
+      sqlplus -s / as sysdba <<EOF >> {{ log_file }}
       set heading off
       select open_mode from v\$database;
       exit;
       EOF
-    register: open_mode
-
-  - name: Log open mode
-    shell: |
-      echo "Database open mode: {{ open_mode.stdout }}" >> {{ log_file }}
 
   - name: Finish log
-    shell: |
+    raw: |
       echo "DG REFRESH END $(date)" >> {{ log_file }}
       echo "=================================" >> {{ log_file }}
