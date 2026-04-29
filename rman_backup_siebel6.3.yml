@@ -1,80 +1,140 @@
-- name: RMAN Backup Oracle
+- name: RMAN Backup Oracle Enterprise
   hosts: all
   gather_facts: no
   become: yes
+  become_method: sudo
   become_user: oracle
 
   vars:
     oracle_sid: sbprd
     oracle_home: /u01/app/oracle/product/11.2.0.4/dbhome_1
+    base_dir: /mnt/oracle_FLZ001/oracle/prd/sbprd
+    log_dir: "{{ base_dir }}/logs"
     backup_type: "{{ tipo_backup }}"
 
   tasks:
 
+    - name: Garantir diretório de logs
+      raw: |
+        mkdir -p {{ log_dir }}
+      changed_when: false
+
+    # =========================
+    # ARCHIVELOG
+    # =========================
     - name: Executar backup ARCHIVELOG
       raw: |
         export ORACLE_SID={{ oracle_sid }}
         export ORACLE_HOME={{ oracle_home }}
         export PATH=$ORACLE_HOME/bin:$PATH
 
-        log_date=$(date "+%Y%m%d_%H:%M")
+        DATA=$(date "+%Y%m%d_%H%M")
+        LOG={{ log_dir }}/backup_archivelog_{{ oracle_sid }}_${DATA}.log
 
-        $ORACLE_HOME/bin/rman target / log=/mnt/oracle_FLZ001/oracle/prd/sbprd/backup_arc_${log_date}.log <<EOF
+        $ORACLE_HOME/bin/rman target / log=${LOG} <<EOF
         RUN {
-          allocate channel d1 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_arc_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
-          allocate channel d2 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_arc_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
-          allocate channel d3 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_arc_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
-          allocate channel d4 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_arc_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
+          allocate channel d1 type disk format '{{ base_dir }}/bkp_arc_%d_%U.rman' MAXPIECESIZE 64G;
+          allocate channel d2 type disk format '{{ base_dir }}/bkp_arc_%d_%U.rman' MAXPIECESIZE 64G;
 
           BACKUP ARCHIVELOG ALL DELETE INPUT;
 
           release channel d1;
           release channel d2;
-          release channel d3;
-          release channel d4;
         }
         exit;
         EOF
+
+        echo ${LOG}
+      register: rman_arch
       when: backup_type == "archivelog"
 
+    - name: Validar log ARCHIVELOG
+      raw: |
+        grep -E "RMAN-|ORA-" {{ rman_arch.stdout }} | grep -v "RMAN-08137" || true
+      register: check_arch
+      when: backup_type == "archivelog"
 
+    - name: Falhar se erro ARCHIVELOG
+      fail:
+        msg: "Erro no RMAN ARCHIVELOG: {{ check_arch.stdout }}"
+      when:
+        - backup_type == "archivelog"
+        - check_arch.stdout != ""
+
+    # =========================
+    # FULL
+    # =========================
     - name: Executar backup FULL
       raw: |
         export ORACLE_SID={{ oracle_sid }}
         export ORACLE_HOME={{ oracle_home }}
         export PATH=$ORACLE_HOME/bin:$PATH
 
-        log_date=$(date "+%Y%m%d_%H:%M")
+        DATA=$(date "+%Y%m%d_%H%M")
+        LOG={{ log_dir }}/backup_full_{{ oracle_sid }}_${DATA}.log
 
-        $ORACLE_HOME/bin/rman target / log=/mnt/oracle_FLZ001/oracle/prd/sbprd/backup_full_${log_date}.log <<EOF
+        $ORACLE_HOME/bin/rman target / log=${LOG} <<EOF
         RUN {
-          allocate channel d1 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_db_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
-          allocate channel d2 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_db_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
-          allocate channel d3 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_db_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
-          allocate channel d4 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_db_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
+          allocate channel d1 type disk format '{{ base_dir }}/bkp_full_%d_%U.rman' MAXPIECESIZE 64G;
+          allocate channel d2 type disk format '{{ base_dir }}/bkp_full_%d_%U.rman' MAXPIECESIZE 64G;
 
           BACKUP AS COMPRESSED BACKUPSET INCREMENTAL LEVEL 0 DATABASE PLUS ARCHIVELOG;
 
           release channel d1;
           release channel d2;
-          release channel d3;
-          release channel d4;
         }
         exit;
         EOF
+
+        echo ${LOG}
+      register: rman_full
       when: backup_type == "full"
 
+    - name: Validar log FULL
+      raw: |
+        grep -E "RMAN-|ORA-" {{ rman_full.stdout }} | grep -v "RMAN-08137" || true
+      register: check_full
+      when: backup_type == "full"
 
-    - name: Limpeza de backups obsoletos
+    - name: Falhar se erro FULL
+      fail:
+        msg: "Erro no RMAN FULL: {{ check_full.stdout }}"
+      when:
+        - backup_type == "full"
+        - check_full.stdout != ""
+
+    # =========================
+    # CLEANUP
+    # =========================
+    - name: Executar cleanup RMAN
       raw: |
         export ORACLE_SID={{ oracle_sid }}
         export ORACLE_HOME={{ oracle_home }}
         export PATH=$ORACLE_HOME/bin:$PATH
 
-        $ORACLE_HOME/bin/rman target / <<EOF
+        DATA=$(date "+%Y%m%d_%H%M")
+        LOG={{ log_dir }}/cleanup_{{ oracle_sid }}_${DATA}.log
+
+        $ORACLE_HOME/bin/rman target / log=${LOG} <<EOF
         CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;
         CROSSCHECK BACKUP;
         DELETE NOPROMPT OBSOLETE;
         exit;
         EOF
+
+        echo ${LOG}
+      register: rman_cleanup
       when: backup_type == "cleanup"
+
+    - name: Validar log CLEANUP
+      raw: |
+        grep -E "RMAN-|ORA-" {{ rman_cleanup.stdout }} | grep -v "RMAN-08137" || true
+      register: check_cleanup
+      when: backup_type == "cleanup"
+
+    - name: Falhar se erro CLEANUP
+      fail:
+        msg: "Erro no RMAN CLEANUP: {{ check_cleanup.stdout }}"
+      when:
+        - backup_type == "cleanup"
+        - check_cleanup.stdout != ""
