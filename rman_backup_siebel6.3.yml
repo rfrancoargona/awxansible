@@ -63,7 +63,9 @@
           exit 0
         fi
 
-        grep -E "RMAN-|ORA-" "$LOG" | grep -v "RMAN-08137" || true
+        grep -E "RMAN-|ORA-" "$LOG" \
+        | grep -v -E "RMAN-08137|RMAN-08120" \
+        || true
       register: check_arch
       when: backup_type == "archivelog"
 
@@ -120,7 +122,9 @@
           exit 0
         fi
 
-        grep -E "RMAN-|ORA-" "$LOG" | grep -v "RMAN-08137" || true
+        grep -E "RMAN-|ORA-" "$LOG" \
+        | grep -v -E "RMAN-08137|RMAN-08120" \
+        || true
       register: check_full
       when: backup_type == "full"
 
@@ -171,7 +175,9 @@
           exit 0
         fi
 
-        grep -E "RMAN-|ORA-" "$LOG" | grep -v "RMAN-08137" || true
+        grep -E "RMAN-|ORA-" "$LOG" \
+        | grep -v -E "RMAN-08137|RMAN-08120" \
+        || true
       register: check_cleanup
       when: backup_type == "cleanup"
 
