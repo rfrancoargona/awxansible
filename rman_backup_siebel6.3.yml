@@ -15,8 +15,7 @@
   tasks:
 
     - name: Garantir diretório de logs
-      raw: |
-        mkdir -p {{ log_dir }}
+      raw: mkdir -p {{ log_dir }}
       changed_when: false
 
     # =========================
@@ -50,7 +49,12 @@
 
     - name: Validar log ARCHIVELOG
       raw: |
-        grep -E "RMAN-|ORA-" {{ rman_arch.stdout }} | grep -v "RMAN-08137" || true
+        LOG="{{ rman_arch.stdout | trim }}"
+        if [ -f "$LOG" ]; then
+          grep -E "RMAN-|ORA-" "$LOG" | grep -v "RMAN-08137" || true
+        else
+          echo "LOG_NOT_FOUND"
+        fi
       register: check_arch
       when: backup_type == "archivelog"
 
@@ -60,6 +64,7 @@
       when:
         - backup_type == "archivelog"
         - check_arch.stdout != ""
+        - check_arch.stdout != "LOG_NOT_FOUND"
 
     # =========================
     # FULL
@@ -92,7 +97,12 @@
 
     - name: Validar log FULL
       raw: |
-        grep -E "RMAN-|ORA-" {{ rman_full.stdout }} | grep -v "RMAN-08137" || true
+        LOG="{{ rman_full.stdout | trim }}"
+        if [ -f "$LOG" ]; then
+          grep -E "RMAN-|ORA-" "$LOG" | grep -v "RMAN-08137" || true
+        else
+          echo "LOG_NOT_FOUND"
+        fi
       register: check_full
       when: backup_type == "full"
 
@@ -102,6 +112,7 @@
       when:
         - backup_type == "full"
         - check_full.stdout != ""
+        - check_full.stdout != "LOG_NOT_FOUND"
 
     # =========================
     # CLEANUP
@@ -128,7 +139,12 @@
 
     - name: Validar log CLEANUP
       raw: |
-        grep -E "RMAN-|ORA-" {{ rman_cleanup.stdout }} | grep -v "RMAN-08137" || true
+        LOG="{{ rman_cleanup.stdout | trim }}"
+        if [ -f "$LOG" ]; then
+          grep -E "RMAN-|ORA-" "$LOG" | grep -v "RMAN-08137" || true
+        else
+          echo "LOG_NOT_FOUND"
+        fi
       register: check_cleanup
       when: backup_type == "cleanup"
 
@@ -138,3 +154,4 @@
       when:
         - backup_type == "cleanup"
         - check_cleanup.stdout != ""
+        - check_cleanup.stdout != "LOG_NOT_FOUND"
