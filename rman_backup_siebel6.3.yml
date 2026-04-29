@@ -42,19 +42,19 @@
         }
         exit;
         EOF
-
-        echo ${LOG}
       register: rman_arch
       when: backup_type == "archivelog"
 
     - name: Validar log ARCHIVELOG
       raw: |
-        LOG="{{ rman_arch.stdout | trim }}"
-        if [ -f "$LOG" ]; then
-          grep -E "RMAN-|ORA-" "$LOG" | grep -v "RMAN-08137" || true
-        else
+        LOG=$(ls -t {{ log_dir }}/backup_archivelog_{{ oracle_sid }}_*.log 2>/dev/null | head -1)
+
+        if [ -z "$LOG" ]; then
           echo "LOG_NOT_FOUND"
+          exit 0
         fi
+
+        grep -E "RMAN-|ORA-" "$LOG" | grep -v "RMAN-08137" || true
       register: check_arch
       when: backup_type == "archivelog"
 
@@ -90,19 +90,19 @@
         }
         exit;
         EOF
-
-        echo ${LOG}
       register: rman_full
       when: backup_type == "full"
 
     - name: Validar log FULL
       raw: |
-        LOG="{{ rman_full.stdout | trim }}"
-        if [ -f "$LOG" ]; then
-          grep -E "RMAN-|ORA-" "$LOG" | grep -v "RMAN-08137" || true
-        else
+        LOG=$(ls -t {{ log_dir }}/backup_full_{{ oracle_sid }}_*.log 2>/dev/null | head -1)
+
+        if [ -z "$LOG" ]; then
           echo "LOG_NOT_FOUND"
+          exit 0
         fi
+
+        grep -E "RMAN-|ORA-" "$LOG" | grep -v "RMAN-08137" || true
       register: check_full
       when: backup_type == "full"
 
@@ -132,19 +132,19 @@
         DELETE NOPROMPT OBSOLETE;
         exit;
         EOF
-
-        echo ${LOG}
       register: rman_cleanup
       when: backup_type == "cleanup"
 
     - name: Validar log CLEANUP
       raw: |
-        LOG="{{ rman_cleanup.stdout | trim }}"
-        if [ -f "$LOG" ]; then
-          grep -E "RMAN-|ORA-" "$LOG" | grep -v "RMAN-08137" || true
-        else
+        LOG=$(ls -t {{ log_dir }}/cleanup_{{ oracle_sid }}_*.log 2>/dev/null | head -1)
+
+        if [ -z "$LOG" ]; then
           echo "LOG_NOT_FOUND"
+          exit 0
         fi
+
+        grep -E "RMAN-|ORA-" "$LOG" | grep -v "RMAN-08137" || true
       register: check_cleanup
       when: backup_type == "cleanup"
 
