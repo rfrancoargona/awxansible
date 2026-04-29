@@ -29,6 +29,9 @@
 
         DATA=$(date "+%Y%m%d_%H%M")
         LOG={{ log_dir }}/backup_archivelog_{{ oracle_sid }}_${DATA}.log
+        TMPFILE=/tmp/rman_arch_{{ oracle_sid }}.logpath
+
+        echo $LOG > $TMPFILE
 
         $ORACLE_HOME/bin/rman target / log=${LOG} <<EOF
         RUN {
@@ -42,14 +45,20 @@
         }
         exit;
         EOF
-      register: rman_arch
       when: backup_type == "archivelog"
 
     - name: Validar log ARCHIVELOG
       raw: |
-        LOG=$(ls -t {{ log_dir }}/backup_archivelog_{{ oracle_sid }}_*.log 2>/dev/null | head -1)
+        TMPFILE=/tmp/rman_arch_{{ oracle_sid }}.logpath
 
-        if [ -z "$LOG" ]; then
+        if [ ! -f "$TMPFILE" ]; then
+          echo "LOG_NOT_FOUND"
+          exit 0
+        fi
+
+        LOG=$(cat $TMPFILE)
+
+        if [ ! -f "$LOG" ]; then
           echo "LOG_NOT_FOUND"
           exit 0
         fi
@@ -77,6 +86,9 @@
 
         DATA=$(date "+%Y%m%d_%H%M")
         LOG={{ log_dir }}/backup_full_{{ oracle_sid }}_${DATA}.log
+        TMPFILE=/tmp/rman_full_{{ oracle_sid }}.logpath
+
+        echo $LOG > $TMPFILE
 
         $ORACLE_HOME/bin/rman target / log=${LOG} <<EOF
         RUN {
@@ -90,14 +102,20 @@
         }
         exit;
         EOF
-      register: rman_full
       when: backup_type == "full"
 
     - name: Validar log FULL
       raw: |
-        LOG=$(ls -t {{ log_dir }}/backup_full_{{ oracle_sid }}_*.log 2>/dev/null | head -1)
+        TMPFILE=/tmp/rman_full_{{ oracle_sid }}.logpath
 
-        if [ -z "$LOG" ]; then
+        if [ ! -f "$TMPFILE" ]; then
+          echo "LOG_NOT_FOUND"
+          exit 0
+        fi
+
+        LOG=$(cat $TMPFILE)
+
+        if [ ! -f "$LOG" ]; then
           echo "LOG_NOT_FOUND"
           exit 0
         fi
@@ -125,6 +143,9 @@
 
         DATA=$(date "+%Y%m%d_%H%M")
         LOG={{ log_dir }}/cleanup_{{ oracle_sid }}_${DATA}.log
+        TMPFILE=/tmp/rman_cleanup_{{ oracle_sid }}.logpath
+
+        echo $LOG > $TMPFILE
 
         $ORACLE_HOME/bin/rman target / log=${LOG} <<EOF
         CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;
@@ -132,14 +153,20 @@
         DELETE NOPROMPT OBSOLETE;
         exit;
         EOF
-      register: rman_cleanup
       when: backup_type == "cleanup"
 
     - name: Validar log CLEANUP
       raw: |
-        LOG=$(ls -t {{ log_dir }}/cleanup_{{ oracle_sid }}_*.log 2>/dev/null | head -1)
+        TMPFILE=/tmp/rman_cleanup_{{ oracle_sid }}.logpath
 
-        if [ -z "$LOG" ]; then
+        if [ ! -f "$TMPFILE" ]; then
+          echo "LOG_NOT_FOUND"
+          exit 0
+        fi
+
+        LOG=$(cat $TMPFILE)
+
+        if [ ! -f "$LOG" ]; then
           echo "LOG_NOT_FOUND"
           exit 0
         fi
