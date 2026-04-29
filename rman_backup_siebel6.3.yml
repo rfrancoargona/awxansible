@@ -12,14 +12,14 @@
   tasks:
 
     - name: Executar backup ARCHIVELOG
-      shell: |
+      raw: |
         export ORACLE_SID={{ oracle_sid }}
         export ORACLE_HOME={{ oracle_home }}
         export PATH=$ORACLE_HOME/bin:$PATH
 
         log_date=$(date "+%Y%m%d_%H:%M")
 
-        rman target / log=/mnt/oracle_FLZ001/oracle/prd/sbprd/backup_arc_${log_date}.log <<EOF
+        $ORACLE_HOME/bin/rman target / log=/mnt/oracle_FLZ001/oracle/prd/sbprd/backup_arc_${log_date}.log <<EOF
         RUN {
           allocate channel d1 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_arc_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
           allocate channel d2 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_arc_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
@@ -39,14 +39,14 @@
 
 
     - name: Executar backup FULL
-      shell: |
+      raw: |
         export ORACLE_SID={{ oracle_sid }}
         export ORACLE_HOME={{ oracle_home }}
         export PATH=$ORACLE_HOME/bin:$PATH
 
         log_date=$(date "+%Y%m%d_%H:%M")
 
-        rman target / log=/mnt/oracle_FLZ001/oracle/prd/sbprd/backup_full_${log_date}.log <<EOF
+        $ORACLE_HOME/bin/rman target / log=/mnt/oracle_FLZ001/oracle/prd/sbprd/backup_full_${log_date}.log <<EOF
         RUN {
           allocate channel d1 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_db_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
           allocate channel d2 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_db_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
@@ -66,13 +66,14 @@
 
 
     - name: Limpeza de backups obsoletos
-      shell: |
+      raw: |
         export ORACLE_SID={{ oracle_sid }}
         export ORACLE_HOME={{ oracle_home }}
         export PATH=$ORACLE_HOME/bin:$PATH
 
-        rman target / <<EOF
+        $ORACLE_HOME/bin/rman target / <<EOF
         CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;
+        CROSSCHECK BACKUP;
         DELETE NOPROMPT OBSOLETE;
         exit;
         EOF
