@@ -1,0 +1,78 @@
+- name: RMAN Backup Oracle
+  hosts: dbservers
+  become: yes
+  become_user: oracle
+
+  vars:
+    oracle_sid: sbprd
+    oracle_home: /u01/app/oracle/product/11.2.0.4/dbhome_1
+    backup_type: "{{ tipo_backup }}"
+
+  tasks:
+
+    - name: Executar backup ARCHIVELOG
+      shell: |
+        export ORACLE_SID={{ oracle_sid }}
+        export ORACLE_HOME={{ oracle_home }}
+        export PATH=$ORACLE_HOME/bin:$PATH
+
+        log_date=$(date "+%Y%m%d_%H:%M")
+
+        rman target / log=/mnt/oracle_FLZ001/oracle/prd/sbprd/backup_arc_${log_date}.log <<EOF
+        RUN {
+          allocate channel d1 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_arc_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
+          allocate channel d2 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_arc_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
+          allocate channel d3 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_arc_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
+          allocate channel d4 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_arc_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
+
+          BACKUP ARCHIVELOG ALL DELETE INPUT;
+
+          release channel d1;
+          release channel d2;
+          release channel d3;
+          release channel d4;
+        }
+        exit;
+        EOF
+      when: backup_type == "archivelog"
+
+
+    - name: Executar backup FULL
+      shell: |
+        export ORACLE_SID={{ oracle_sid }}
+        export ORACLE_HOME={{ oracle_home }}
+        export PATH=$ORACLE_HOME/bin:$PATH
+
+        log_date=$(date "+%Y%m%d_%H:%M")
+
+        rman target / log=/mnt/oracle_FLZ001/oracle/prd/sbprd/backup_full_${log_date}.log <<EOF
+        RUN {
+          allocate channel d1 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_db_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
+          allocate channel d2 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_db_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
+          allocate channel d3 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_db_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
+          allocate channel d4 type disk format '/mnt/oracle_FLZ001/oracle/prd/sbprd/bkp_db_%d_%D%M%Y%U.rman' MAXPIECESIZE 64G;
+
+          BACKUP AS COMPRESSED BACKUPSET INCREMENTAL LEVEL 0 DATABASE PLUS ARCHIVELOG;
+
+          release channel d1;
+          release channel d2;
+          release channel d3;
+          release channel d4;
+        }
+        exit;
+        EOF
+      when: backup_type == "full"
+
+
+    - name: Limpeza de backups obsoletos
+      shell: |
+        export ORACLE_SID={{ oracle_sid }}
+        export ORACLE_HOME={{ oracle_home }}
+        export PATH=$ORACLE_HOME/bin:$PATH
+
+        rman target / <<EOF
+        CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;
+        DELETE NOPROMPT OBSOLETE;
+        exit;
+        EOF
+      when: backup_type == "cleanup"
