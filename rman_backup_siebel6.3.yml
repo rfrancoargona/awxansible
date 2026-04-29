@@ -1,5 +1,5 @@
 - name: RMAN Backup Oracle
-  hosts: dbservers
+  hosts: all
   become: yes
   become_user: oracle
 
