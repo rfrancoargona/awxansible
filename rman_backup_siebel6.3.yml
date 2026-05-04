@@ -154,7 +154,7 @@
         $ORACLE_HOME/bin/rman target / log=${LOG} <<EOF
         CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;
         CROSSCHECK BACKUP;
-        DELETE NOPROMPT OBSOLETE;
+        DELETE NOPROMPT OBSOLETE DEVICE TYPE DISK;
         exit;
         EOF
       when: backup_type == "cleanup"
