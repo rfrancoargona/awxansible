@@ -3,7 +3,7 @@
   set_fact:
     oracle_sid: "{{ db.sid }}"
     instance_base_dir: "{{ base_dir }}/{{ db.sid | lower }}"
-    log_dir: "{{ instance_base_dir }}/logs"
+    log_dir: "{{ base_dir }}/{{ db.sid | lower }}/logs"
 
 - name: Garantir diretório de logs
   raw: mkdir -p {{ log_dir }}
