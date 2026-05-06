@@ -17,33 +17,12 @@
       echo "DG REFRESH START $(date)" >> {{ log_file }}
       echo "=================================" >> {{ log_file }}
 
-  # =========================
-  # VALIDAR ROLE
-  # =========================
-  - name: Check current database role
-    raw: |
-      source ~/.bash_profile
-      export ORACLE_SID={{ oracle_sid }}
-
-      sqlplus -s / as sysdba <<EOF
-      set heading off feedback off
-      select database_role from v\$database;
-      exit;
-      EOF
-    register: db_role
-
-  - name: Log current role
-    raw: echo "Current role: {{ db_role.stdout }}" >> {{ log_file }}
-
-  # =========================
-  # CONVERTER PARA PHYSICAL
-  # =========================
   - name: Convert snapshot to physical standby
     raw: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
 
-      sqlplus / as sysdba <<EOF >> {{ log_file }} 2>&1
+      sqlplus / as sysdba <<EOF >> {{ log_file }}
       shutdown immediate;
       startup mount;
       alter database convert to physical standby;
@@ -52,79 +31,44 @@
       exit;
       EOF
 
-  # =========================
-  # START RECOVERY
-  # =========================
   - name: Start managed recovery
     raw: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
 
-      sqlplus / as sysdba <<EOF >> {{ log_file }} 2>&1
+      sqlplus / as sysdba <<EOF >> {{ log_file }}
       alter database recover managed standby database using current logfile disconnect;
       exit;
       EOF
 
-  # =========================
-  # WAIT (ASYNC - NÃO BLOQUEIA AWX)
-  # =========================
-  - name: Wait sync window (async)
-    shell: |
+  - name: Wait fixed sync window
+    raw: |
       echo "Sync window started $(date)" >> {{ log_file }}
       sleep {{ sync_window_seconds }}
       echo "Sync window finished $(date)" >> {{ log_file }}
-    async: "{{ sync_window_seconds }}"
-    poll: 0
 
-  # =========================
-  # VALIDAR RECOVERY RODANDO
-  # =========================
-  - name: Check managed standby status
-    raw: |
-      source ~/.bash_profile
-      export ORACLE_SID={{ oracle_sid }}
-
-      sqlplus -s / as sysdba <<EOF
-      set heading off
-      select process||' - '||status from v\$managed_standby;
-      exit;
-      EOF
-    register: dg_status
-
-  - name: Log standby status
-    raw: echo "{{ dg_status.stdout }}" >> {{ log_file }}
-
-  # =========================
-  # CANCEL RECOVERY
-  # =========================
   - name: Cancel managed recovery
     raw: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
 
-      sqlplus / as sysdba <<EOF >> {{ log_file }} 2>&1
+      sqlplus / as sysdba <<EOF >> {{ log_file }}
       alter database recover managed standby database cancel;
       exit;
       EOF
 
-  # =========================
-  # CONVERTER PARA SNAPSHOT
-  # =========================
   - name: Convert to snapshot standby
     raw: |
       source ~/.bash_profile
       export ORACLE_SID={{ oracle_sid }}
 
-      sqlplus / as sysdba <<EOF >> {{ log_file }} 2>&1
+      sqlplus / as sysdba <<EOF >> {{ log_file }}
       alter database convert to snapshot standby;
       shutdown immediate;
       startup;
       exit;
       EOF
 
-  # =========================
-  # VALIDAR OPEN MODE
-  # =========================
   - name: Validate open mode
     raw: |
       source ~/.bash_profile
@@ -140,3 +84,5 @@
     raw: |
       echo "DG REFRESH END $(date)" >> {{ log_file }}
       echo "=================================" >> {{ log_file }}
+	  
+	  
