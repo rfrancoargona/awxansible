@@ -101,6 +101,12 @@
 
           release channel d1;
           release channel d2;
+          allocate channel d3 type disk;
+          backup spfile format '{{ base_dir }}/backup%d_%s_%p_%c_%t.spfile.rman';
+          release channel d3; 
+          allocate channel d4 type disk;
+          backup current controlfile format '{{ base_dir }}/bkp_ctl_%d_%D%M%Y%t.rman';
+          release channel f4;
         }
         exit;
         EOF
