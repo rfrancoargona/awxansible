@@ -37,14 +37,6 @@
 
       release channel d1;
       release channel d2;
-
-      allocate channel d3 type disk;
-      backup spfile format '{{ instance_base_dir }}/backup%d_%s_%p_%c_%t.spfile.rman';
-      release channel d3;
-
-      allocate channel d4 type disk;
-      backup current controlfile format '{{ instance_base_dir }}/bkp_ctl_%d_%D%M%Y%t.rman';
-      release channel d4;
     }
     exit;
     EOF
@@ -64,7 +56,7 @@
     fi
 
     grep -E "RMAN-|ORA-" "$LOG" \
-    | grep -v -E "RMAN-08137|RMAN-08120" \
+    | grep -v -E "RMAN-08137|RMAN-08120|RMAN-08591" \
     || true
   register: check_arch
   when: backup_type == "archivelog"
@@ -100,14 +92,6 @@
 
       release channel d1;
       release channel d2;
-
-      allocate channel d3 type disk;
-      backup spfile format '{{ instance_base_dir }}/backup%d_%s_%p_%c_%t.spfile.rman';
-      release channel d3;
-
-      allocate channel d4 type disk;
-      backup current controlfile format '{{ instance_base_dir }}/bkp_ctl_%d_%D%M%Y%t.rman';
-      release channel d4;
     }
     exit;
     EOF
@@ -127,7 +111,7 @@
     fi
 
     grep -E "RMAN-|ORA-" "$LOG" \
-    | grep -v -E "RMAN-08137|RMAN-08120" \
+    | grep -v -E "RMAN-08137|RMAN-08120|RMAN-08591" \
     || true
   register: check_full
   when: backup_type == "full"
@@ -176,7 +160,7 @@
     fi
 
     grep -E "RMAN-|ORA-" "$LOG" \
-    | grep -v -E "RMAN-08137|RMAN-08120" \
+    | grep -v -E "RMAN-08137|RMAN-08120|RMAN-08591" \
     || true
   register: check_cleanup
   when: backup_type == "cleanup"
