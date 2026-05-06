@@ -84,5 +84,3 @@
     raw: |
       echo "DG REFRESH END $(date)" >> {{ log_file }}
       echo "=================================" >> {{ log_file }}
-	  
-	  
