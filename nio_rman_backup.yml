@@ -24,3 +24,30 @@
       loop: "{{ oracle_instances }}"
       loop_control:
         loop_var: db
+        - name: Consolidar relatório
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    report_date: "{{ lookup('pipe','date +%Y-%m-%d_%H:%M') }}"
+
+  tasks:
+
+    - name: Consolidar dados
+      set_fact:
+        report_data: >-
+          {{
+            groups['all']
+            | map('extract', hostvars, 'rman_result')
+            | select('defined')
+            | list
+          }}
+
+    - name: Gerar relatório HTML
+      template:
+        src: templates/rman_report.html.j2
+        dest: /tmp/rman_report.html
+
+    - name: Exibir localização do relatório
+      debug:
+        msg: "Relatório gerado em /tmp/rman_report.html"
