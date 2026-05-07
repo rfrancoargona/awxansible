@@ -25,32 +25,3 @@
       loop: "{{ oracle_instances }}"
       loop_control:
         loop_var: db
-
-  post_tasks:
-
-    - name: Consolidar dados relatório
-      set_fact:
-        report_data: >-
-          {{
-            ansible_play_hosts
-            | map('extract', hostvars, 'rman_result')
-            | select('defined')
-            | flatten
-            | list
-          }}
-      run_once: true
-      delegate_to: localhost
-
-    - name: Gerar relatório HTML
-      template:
-        src: templates/rman_report.html.j2
-        dest: /tmp/rman_report.html
-      vars:
-        report_date: "{{ lookup('pipe','date +%Y-%m-%d_%H:%M') }}"
-      run_once: true
-      delegate_to: localhost
-
-    - name: Exibir localização relatório
-      debug:
-        msg: "Relatório gerado em /tmp/rman_report.html"
-      run_once: true
