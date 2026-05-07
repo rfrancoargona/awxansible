@@ -128,7 +128,7 @@
 # =========================================================
 
 - name: Criar script cleanup RMAN
-  shell: |
+  raw: |
     cat > /tmp/cleanup_{{ oracle_sid }}.rman <<EOF
     CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;
 
@@ -145,7 +145,7 @@
   when: backup_type == "cleanup"
 
 - name: Executar cleanup RMAN
-  shell: |
+  raw: |
     export ORACLE_SID={{ oracle_sid }}
     export ORACLE_HOME={{ oracle_home }}
     export PATH=$ORACLE_HOME/bin:$PATH
@@ -165,7 +165,7 @@
   when: backup_type == "cleanup"
 
 - name: Validar log CLEANUP
-  shell: |
+  raw: |
     LOG=$(cat /tmp/rman_cleanup_{{ oracle_sid }}.logpath 2>/dev/null)
 
     if [ -z "$LOG" ] || [ ! -f "$LOG" ]; then
@@ -187,5 +187,5 @@
     - check_cleanup.stdout not in ["", "LOG_NOT_FOUND"]
 
 - name: Remover script temporário cleanup
-  shell: rm -f /tmp/cleanup_{{ oracle_sid }}.rman
+  raw: rm -f /tmp/cleanup_{{ oracle_sid }}.rman
   when: backup_type == "cleanup"
