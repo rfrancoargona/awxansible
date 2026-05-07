@@ -1,0 +1,63 @@
+---
+- name: Gerar dashboard fake RMAN
+  hosts: localhost
+  gather_facts: no
+
+  tasks:
+
+    - name: Criar diretório web
+      file:
+        path: /var/www/html/awx
+        state: directory
+        mode: '0755'
+
+    - name: Gerar HTML fake
+      copy:
+        dest: /var/www/html/awx/rel_backups.html
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>RMAN Dashboard</title>
+              <style>
+                  body { font-family: Arial; background:#f4f4f4; }
+                  table { border-collapse: collapse; width: 80%; margin: 20px; }
+                  th, td { border: 1px solid #ccc; padding: 8px; }
+                  th { background: #333; color: white; }
+                  .success { color: green; font-weight: bold; }
+                  .failed { color: red; font-weight: bold; }
+              </style>
+          </head>
+          <body>
+
+          <h2>RMAN Dashboard (AWX TESTE)</h2>
+
+          <table>
+              <tr>
+                  <th>Host</th>
+                  <th>SID</th>
+                  <th>Status</th>
+              </tr>
+
+              <tr>
+                  <td>db01</td>
+                  <td>CT1PRD</td>
+                  <td class="success">SUCCESS</td>
+              </tr>
+
+              <tr>
+                  <td>db01</td>
+                  <td>CT10PRD</td>
+                  <td class="success">SUCCESS</td>
+              </tr>
+
+              <tr>
+                  <td>db02</td>
+                  <td>OIPRD</td>
+                  <td class="failed">FAILED</td>
+              </tr>
+
+          </table>
+
+          </body>
+          </html>
