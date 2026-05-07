@@ -17,174 +17,179 @@
 # ARCHIVELOG
 # =========================================================
 
-- name: Executar backup ARCHIVELOG
-  raw: |
-    export ORACLE_SID={{ oracle_sid }}
-    export ORACLE_HOME={{ oracle_home }}
-    export PATH=$ORACLE_HOME/bin:$PATH
+- block:
 
-    LOG={{ log_dir }}/backup_archivelog_{{ oracle_sid }}_{{ DATA }}.log
-    TMPFILE=/tmp/rman_arch_{{ oracle_sid }}.logpath
+    - name: Executar backup ARCHIVELOG
+      raw: |
+        export ORACLE_SID={{ oracle_sid }}
+        export ORACLE_HOME={{ oracle_home }}
+        export PATH=$ORACLE_HOME/bin:$PATH
 
-    echo $LOG > $TMPFILE
+        LOG={{ log_dir }}/backup_archivelog_{{ oracle_sid }}_{{ DATA }}.log
+        TMPFILE=/tmp/rman_arch_{{ oracle_sid }}.logpath
 
-    printf '%s\n' \
-    'RUN {' \
-    "allocate channel d1 type disk format ''{{ instance_base_dir }}/bkp_arc_%d_%U.rman'' MAXPIECESIZE 64G;" \
-    "allocate channel d2 type disk format ''{{ instance_base_dir }}/bkp_arc_%d_%U.rman'' MAXPIECESIZE 64G;" \
-    'BACKUP ARCHIVELOG ALL DELETE INPUT;' \
-    'release channel d1;' \
-    'release channel d2;' \
-    '}' \
-    'exit;' \
-    | $ORACLE_HOME/bin/rman target / log=${LOG}
+        echo $LOG > $TMPFILE
 
-  register: arch_exec
-  retries: 2
-  delay: 30
-  until: arch_exec.rc == 0
+        printf '%s\n' \
+        'RUN {' \
+        "allocate channel d1 type disk format ''{{ instance_base_dir }}/bkp_arc_%d_%U.rman'' MAXPIECESIZE 64G;" \
+        "allocate channel d2 type disk format ''{{ instance_base_dir }}/bkp_arc_%d_%U.rman'' MAXPIECESIZE 64G;" \
+        'BACKUP ARCHIVELOG ALL DELETE INPUT;' \
+        'release channel d1;' \
+        'release channel d2;' \
+        '}' \
+        'exit;' \
+        | $ORACLE_HOME/bin/rman target / log=${LOG}
+
+      register: arch_exec
+      retries: 2
+      delay: 30
+      until: arch_exec.rc == 0
+
+    - name: Validar log ARCHIVELOG
+      raw: |
+        LOG=$(cat /tmp/rman_arch_{{ oracle_sid }}.logpath 2>/dev/null)
+
+        if [ -z "$LOG" ] || [ ! -f "$LOG" ]; then
+          echo "LOG_NOT_FOUND"
+          exit 0
+        fi
+
+        grep -E "RMAN-|ORA-" "$LOG" \
+        | grep -v -E "RMAN-08137|RMAN-08120|RMAN-08591|ORA-19606" \
+        || true
+
+      register: check_arch
+
+    - name: Falhar se erro ARCHIVELOG
+      fail:
+        msg: "Erro RMAN ARCHIVELOG SID {{ oracle_sid }}: {{ check_arch.stdout }}"
+      when:
+        - check_arch.stdout not in ["", "LOG_NOT_FOUND"]
+
   when: backup_type == "archivelog"
-
-- name: Validar log ARCHIVELOG
-  raw: |
-    LOG=$(cat /tmp/rman_arch_{{ oracle_sid }}.logpath 2>/dev/null)
-
-    if [ -z "$LOG" ] || [ ! -f "$LOG" ]; then
-      echo "LOG_NOT_FOUND"
-      exit 0
-    fi
-
-    grep -E "RMAN-|ORA-" "$LOG" \
-    | grep -v -E "RMAN-08137|RMAN-08120|RMAN-08591|ORA-19606" \
-    || true
-
-  register: check_arch
-  when: backup_type == "archivelog"
-
-- name: Falhar se erro ARCHIVELOG
-  fail:
-    msg: "Erro RMAN ARCHIVELOG SID {{ oracle_sid }}: {{ check_arch.stdout }}"
-  when:
-    - backup_type == "archivelog"
-    - check_arch.stdout not in ["", "LOG_NOT_FOUND"]
 
 # =========================================================
 # FULL
 # =========================================================
 
-- name: Executar backup FULL
-  raw: |
-    export ORACLE_SID={{ oracle_sid }}
-    export ORACLE_HOME={{ oracle_home }}
-    export PATH=$ORACLE_HOME/bin:$PATH
+- block:
 
-    LOG={{ log_dir }}/backup_full_{{ oracle_sid }}_{{ DATA }}.log
-    TMPFILE=/tmp/rman_full_{{ oracle_sid }}.logpath
+    - name: Executar backup FULL
+      raw: |
+        export ORACLE_SID={{ oracle_sid }}
+        export ORACLE_HOME={{ oracle_home }}
+        export PATH=$ORACLE_HOME/bin:$PATH
 
-    echo $LOG > $TMPFILE
+        LOG={{ log_dir }}/backup_full_{{ oracle_sid }}_{{ DATA }}.log
+        TMPFILE=/tmp/rman_full_{{ oracle_sid }}.logpath
 
-    printf '%s\n' \
-    'RUN {' \
-    "allocate channel d1 type disk format ''{{ instance_base_dir }}/bkp_full_%d_%U.rman'' MAXPIECESIZE 64G;" \
-    "allocate channel d2 type disk format ''{{ instance_base_dir }}/bkp_full_%d_%U.rman'' MAXPIECESIZE 64G;" \
-    'BACKUP AS COMPRESSED BACKUPSET INCREMENTAL LEVEL 0 DATABASE PLUS ARCHIVELOG;' \
-    'release channel d1;' \
-    'release channel d2;' \
-    '}' \
-    'exit;' \
-    | $ORACLE_HOME/bin/rman target / log=${LOG}
+        echo $LOG > $TMPFILE
 
-  register: full_exec
-  retries: 2
-  delay: 30
-  until: full_exec.rc == 0
+        printf '%s\n' \
+        'RUN {' \
+        "allocate channel d1 type disk format ''{{ instance_base_dir }}/bkp_full_%d_%U.rman'' MAXPIECESIZE 64G;" \
+        "allocate channel d2 type disk format ''{{ instance_base_dir }}/bkp_full_%d_%U.rman'' MAXPIECESIZE 64G;" \
+        'BACKUP AS COMPRESSED BACKUPSET INCREMENTAL LEVEL 0 DATABASE PLUS ARCHIVELOG;' \
+        'release channel d1;' \
+        'release channel d2;' \
+        '}' \
+        'exit;' \
+        | $ORACLE_HOME/bin/rman target / log=${LOG}
+
+      register: full_exec
+      retries: 2
+      delay: 30
+      until: full_exec.rc == 0
+
+    - name: Validar log FULL
+      raw: |
+        LOG=$(cat /tmp/rman_full_{{ oracle_sid }}.logpath 2>/dev/null)
+
+        if [ -z "$LOG" ] || [ ! -f "$LOG" ]; then
+          echo "LOG_NOT_FOUND"
+          exit 0
+        fi
+
+        grep -E "RMAN-|ORA-" "$LOG" \
+        | grep -v -E "RMAN-08137|RMAN-08120|RMAN-08591|ORA-19606" \
+        || true
+
+      register: check_full
+
+    - name: Falhar se erro FULL
+      fail:
+        msg: "Erro RMAN FULL SID {{ oracle_sid }}: {{ check_full.stdout }}"
+      when:
+        - check_full.stdout not in ["", "LOG_NOT_FOUND"]
+
   when: backup_type == "full"
-
-- name: Validar log FULL
-  raw: |
-    LOG=$(cat /tmp/rman_full_{{ oracle_sid }}.logpath 2>/dev/null)
-
-    if [ -z "$LOG" ] || [ ! -f "$LOG" ]; then
-      echo "LOG_NOT_FOUND"
-      exit 0
-    fi
-
-    grep -E "RMAN-|ORA-" "$LOG" \
-    | grep -v -E "RMAN-08137|RMAN-08120|RMAN-08591|ORA-19606" \
-    || true
-
-  register: check_full
-  when: backup_type == "full"
-
-- name: Falhar se erro FULL
-  fail:
-    msg: "Erro RMAN FULL SID {{ oracle_sid }}: {{ check_full.stdout }}"
-  when:
-    - backup_type == "full"
-    - check_full.stdout not in ["", "LOG_NOT_FOUND"]
 
 # =========================================================
 # CLEANUP
 # =========================================================
 
-- name: Executar cleanup RMAN
-  raw: |
-    export ORACLE_SID={{ oracle_sid }}
-    export ORACLE_HOME={{ oracle_home }}
-    export PATH=$ORACLE_HOME/bin:$PATH
+- block:
 
-    LOG={{ log_dir }}/cleanup_{{ oracle_sid }}_{{ DATA }}.log
-    TMPFILE=/tmp/rman_cleanup_{{ oracle_sid }}.logpath
+    - name: Executar cleanup RMAN
+      raw: |
+        export ORACLE_SID={{ oracle_sid }}
+        export ORACLE_HOME={{ oracle_home }}
+        export PATH=$ORACLE_HOME/bin:$PATH
 
-    echo $LOG > $TMPFILE
+        LOG={{ log_dir }}/cleanup_{{ oracle_sid }}_{{ DATA }}.log
+        TMPFILE=/tmp/rman_cleanup_{{ oracle_sid }}.logpath
 
-    printf '%s\n' \
-    'CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;' \
-    'CROSSCHECK BACKUP;' \
-    'CROSSCHECK COPY;' \
-    'DELETE NOPROMPT EXPIRED BACKUP;' \
-    'DELETE NOPROMPT EXPIRED COPY;' \
-    'DELETE NOPROMPT OBSOLETE DEVICE TYPE DISK;' \
-    'exit;' \
-    | $ORACLE_HOME/bin/rman target / log=${LOG}
+        echo $LOG > $TMPFILE
 
-  register: cleanup_exec
-  retries: 2
-  delay: 30
-  until: cleanup_exec.rc == 0
+        printf '%s\n' \
+        'CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;' \
+        'CROSSCHECK ARCHIVELOG ALL;' \
+        'DELETE NOPROMPT EXPIRED ARCHIVELOG ALL;' \
+        'CROSSCHECK BACKUP;' \
+        'DELETE NOPROMPT EXPIRED BACKUP;' \
+        'DELETE NOPROMPT OBSOLETE;' \
+        'exit;' \
+        | $ORACLE_HOME/bin/rman target / log=${LOG}
+
+      register: cleanup_exec
+      retries: 2
+      delay: 30
+      until: cleanup_exec.rc == 0
+
+    - name: Validar log CLEANUP
+      raw: |
+        LOG=$(cat /tmp/rman_cleanup_{{ oracle_sid }}.logpath 2>/dev/null)
+
+        if [ -z "$LOG" ] || [ ! -f "$LOG" ]; then
+          echo "LOG_NOT_FOUND"
+          exit 0
+        fi
+
+        grep -E "RMAN-|ORA-" "$LOG" \
+        | grep -v -E "RMAN-08137|RMAN-08120|RMAN-08591|ORA-19606" \
+        || true
+
+      register: check_cleanup
+
+    - name: Falhar se erro CLEANUP
+      fail:
+        msg: "Erro RMAN CLEANUP SID {{ oracle_sid }}: {{ check_cleanup.stdout }}"
+      when:
+        - check_cleanup.stdout not in ["", "LOG_NOT_FOUND"]
+
   when: backup_type == "cleanup"
 
-- name: Validar log CLEANUP
-  raw: |
-    LOG=$(cat /tmp/rman_cleanup_{{ oracle_sid }}.logpath 2>/dev/null)
+# =========================================================
+# RESULTADO
+# =========================================================
 
-    if [ -z "$LOG" ] || [ ! -f "$LOG" ]; then
-      echo "LOG_NOT_FOUND"
-      exit 0
-    fi
-
-    grep -E "RMAN-|ORA-" "$LOG" \
-    | grep -v -E "RMAN-08137|RMAN-08120|RMAN-08591|ORA-19606" \
-    || true
-
-  register: check_cleanup
-  when: backup_type == "cleanup"
-
-- name: Falhar se erro CLEANUP
-  fail:
-    msg: "Erro RMAN CLEANUP SID {{ oracle_sid }}: {{ check_cleanup.stdout }}"
-  when:
-    - backup_type == "cleanup"
-    - check_cleanup.stdout not in ["", "LOG_NOT_FOUND"]
-    - name: Definir status da instância
+- name: Registrar resultado RMAN
   set_fact:
-    rman_result:
-      host: "{{ inventory_hostname }}"
-      sid: "{{ oracle_sid }}"
-      status: "SUCCESS"
-      status_class: "success"
-      log: "{{ log_dir }}"
-  when:
-    - check_arch is not defined or check_arch.stdout in ['', 'LOG_NOT_FOUND']
-    - check_full is not defined or check_full.stdout in ['', 'LOG_NOT_FOUND']
-    - check_cleanup is not defined or check_cleanup.stdout in ['', 'LOG_NOT_FOUND']
+    rman_result: "{{ (rman_result | default([])) + [ {
+      'host': inventory_hostname,
+      'sid': oracle_sid,
+      'status': 'SUCCESS',
+      'status_class': 'success',
+      'log': log_dir
+    } ] }}"
