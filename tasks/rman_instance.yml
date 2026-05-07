@@ -148,7 +148,7 @@
         'DELETE NOPROMPT EXPIRED ARCHIVELOG ALL;' \
         'CROSSCHECK BACKUP;' \
         'DELETE NOPROMPT EXPIRED BACKUP;' \
-        'DELETE NOPROMPT OBSOLETE;' \
+        'DELETE NOPROMPT OBSOLETE DEVICE TYPE DISK;' \
         'exit;' \
         | $ORACLE_HOME/bin/rman target / log=${LOG}
 
