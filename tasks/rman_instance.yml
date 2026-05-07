@@ -1,3 +1,4 @@
+```yaml
 ---
 - name: Definir variáveis da instância
   set_fact:
@@ -32,8 +33,8 @@
 
         printf '%s\n' \
         'RUN {' \
-        "allocate channel d1 type disk format ''{{ instance_base_dir }}/bkp_arc_%d_%U.rman'' MAXPIECESIZE 64G;" \
-        "allocate channel d2 type disk format ''{{ instance_base_dir }}/bkp_arc_%d_%U.rman'' MAXPIECESIZE 64G;" \
+        "allocate channel d1 type disk format '{{ instance_base_dir }}/bkp_arc_%d_%U.rman' MAXPIECESIZE 64G;" \
+        "allocate channel d2 type disk format '{{ instance_base_dir }}/bkp_arc_%d_%U.rman' MAXPIECESIZE 64G;" \
         'BACKUP ARCHIVELOG ALL DELETE INPUT;' \
         'release channel d1;' \
         'release channel d2;' \
@@ -88,8 +89,8 @@
 
         printf '%s\n' \
         'RUN {' \
-        "allocate channel d1 type disk format ''{{ instance_base_dir }}/bkp_full_%d_%U.rman'' MAXPIECESIZE 64G;" \
-        "allocate channel d2 type disk format ''{{ instance_base_dir }}/bkp_full_%d_%U.rman'' MAXPIECESIZE 64G;" \
+        "allocate channel d1 type disk format '{{ instance_base_dir }}/bkp_full_%d_%U.rman' MAXPIECESIZE 64G;" \
+        "allocate channel d2 type disk format '{{ instance_base_dir }}/bkp_full_%d_%U.rman' MAXPIECESIZE 64G;" \
         'BACKUP AS COMPRESSED BACKUPSET INCREMENTAL LEVEL 0 DATABASE PLUS ARCHIVELOG;' \
         'release channel d1;' \
         'release channel d2;' \
@@ -193,3 +194,4 @@
       'status_class': 'success',
       'log': log_dir
     } ] }}"
+```
