@@ -1,10 +1,52 @@
 <!DOCTYPE html>
+<html>
+<head>
+
+<style>
+
+body {
+    font-family: Arial;
+    background-color: #f4f4f4;
+    margin: 20px;
+}
+
+h1 {
+    color: #333;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    background: white;
+}
+
+th {
+    background: #2d3e50;
+    color: white;
+    padding: 10px;
+}
+
+td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+.success {
+    background-color: #d4edda;
+}
+
+.failed {
+    background-color: #f8d7da;
+}
+
 .footer {
     margin-top: 20px;
     font-size: 12px;
     color: #666;
 }
+
 </style>
+
 </head>
 
 <body>
@@ -19,11 +61,13 @@
     <th>Tipo Backup</th>
     <th>Total Hosts</th>
 </tr>
+
 <tr>
     <td>{{ report_date }}</td>
     <td>{{ backup_type }}</td>
     <td>{{ ansible_play_hosts | length }}</td>
 </tr>
+
 </table>
 
 <br>
@@ -31,6 +75,7 @@
 <h2>Detalhamento</h2>
 
 <table>
+
 <tr>
     <th>Host</th>
     <th>SID</th>
@@ -39,18 +84,20 @@
 </tr>
 
 {% for item in report_data %}
+
 <tr class="{{ item.status_class }}">
     <td>{{ item.host }}</td>
     <td>{{ item.sid }}</td>
     <td>{{ item.status }}</td>
     <td>{{ item.log }}</td>
 </tr>
+
 {% endfor %}
 
 </table>
 
 <div class="footer">
-Relatório gerado automaticamente pelo AWX + Ansible + Oracle RMAN
+Relatório gerado automaticamente pelo AWX + Oracle RMAN
 </div>
 
 </body>
