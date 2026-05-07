@@ -176,3 +176,15 @@
   when:
     - backup_type == "cleanup"
     - check_cleanup.stdout not in ["", "LOG_NOT_FOUND"]
+    - name: Definir status da instância
+  set_fact:
+    rman_result:
+      host: "{{ inventory_hostname }}"
+      sid: "{{ oracle_sid }}"
+      status: "SUCCESS"
+      status_class: "success"
+      log: "{{ log_dir }}"
+  when:
+    - check_arch is not defined or check_arch.stdout in ['', 'LOG_NOT_FOUND']
+    - check_full is not defined or check_full.stdout in ['', 'LOG_NOT_FOUND']
+    - check_cleanup is not defined or check_cleanup.stdout in ['', 'LOG_NOT_FOUND']
