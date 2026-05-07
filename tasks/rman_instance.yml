@@ -127,8 +127,25 @@
 # CLEANUP
 # =========================================================
 
+- name: Criar script cleanup RMAN
+  shell: |
+    cat > /tmp/cleanup_{{ oracle_sid }}.rman <<EOF
+    CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;
+
+    CROSSCHECK BACKUP;
+    CROSSCHECK COPY;
+
+    DELETE NOPROMPT EXPIRED BACKUP;
+    DELETE NOPROMPT EXPIRED COPY;
+
+    DELETE NOPROMPT OBSOLETE;
+
+    exit;
+    EOF
+  when: backup_type == "cleanup"
+
 - name: Executar cleanup RMAN
-  raw: |
+  shell: |
     export ORACLE_SID={{ oracle_sid }}
     export ORACLE_HOME={{ oracle_home }}
     export PATH=$ORACLE_HOME/bin:$PATH
@@ -138,12 +155,9 @@
 
     echo $LOG > $TMPFILE
 
-    $ORACLE_HOME/bin/rman target / log=${LOG} <<EOF
-    CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;
-    CROSSCHECK BACKUP;
-    DELETE NOPROMPT OBSOLETE DEVICE TYPE DISK;
-    exit;
-    EOF
+    $ORACLE_HOME/bin/rman target / \
+      cmdfile=/tmp/cleanup_{{ oracle_sid }}.rman \
+      log=${LOG}
   register: cleanup_exec
   retries: 2
   delay: 30
@@ -151,7 +165,7 @@
   when: backup_type == "cleanup"
 
 - name: Validar log CLEANUP
-  raw: |
+  shell: |
     LOG=$(cat /tmp/rman_cleanup_{{ oracle_sid }}.logpath 2>/dev/null)
 
     if [ -z "$LOG" ] || [ ! -f "$LOG" ]; then
@@ -160,7 +174,7 @@
     fi
 
     grep -E "RMAN-|ORA-" "$LOG" \
-    | grep -v -E "RMAN-08137|RMAN-08120|RMAN-08591" \
+    | grep -v -E "RMAN-08137|RMAN-08120|RMAN-08591|ORA-19606" \
     || true
   register: check_cleanup
   when: backup_type == "cleanup"
@@ -171,3 +185,7 @@
   when:
     - backup_type == "cleanup"
     - check_cleanup.stdout not in ["", "LOG_NOT_FOUND"]
+
+- name: Remover script temporário cleanup
+  shell: rm -f /tmp/cleanup_{{ oracle_sid }}.rman
+  when: backup_type == "cleanup"
