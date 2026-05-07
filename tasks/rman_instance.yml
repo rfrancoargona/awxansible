@@ -20,6 +20,21 @@
 
 - block:
 
+    - name: Criar command file ARCHIVELOG
+      raw: |
+        cat <<EOF > /tmp/rman_arch_{{ oracle_sid }}.rcv
+        RUN {
+          allocate channel d1 type disk format '{{ instance_base_dir }}/bkp_arc_%d_%U.rman' MAXPIECESIZE 64G;
+          allocate channel d2 type disk format '{{ instance_base_dir }}/bkp_arc_%d_%U.rman' MAXPIECESIZE 64G;
+
+          BACKUP ARCHIVELOG ALL DELETE INPUT;
+
+          release channel d1;
+          release channel d2;
+        }
+        exit;
+        EOF
+
     - name: Executar backup ARCHIVELOG
       raw: |
         export ORACLE_SID={{ oracle_sid }}
@@ -31,16 +46,9 @@
 
         echo $LOG > $TMPFILE
 
-        printf '%s\n' \
-        'RUN {' \
-        "allocate channel d1 type disk format '{{ instance_base_dir }}/bkp_arc_%d_%U.rman' MAXPIECESIZE 64G;" \
-        "allocate channel d2 type disk format '{{ instance_base_dir }}/bkp_arc_%d_%U.rman' MAXPIECESIZE 64G;" \
-        'BACKUP ARCHIVELOG ALL DELETE INPUT;' \
-        'release channel d1;' \
-        'release channel d2;' \
-        '}' \
-        'exit;' \
-        | $ORACLE_HOME/bin/rman target / log=${LOG}
+        $ORACLE_HOME/bin/rman target / \
+          cmdfile=/tmp/rman_arch_{{ oracle_sid }}.rcv \
+          log=${LOG}
 
       register: arch_exec
       retries: 2
@@ -68,6 +76,10 @@
       when:
         - check_arch.stdout not in ["", "LOG_NOT_FOUND"]
 
+    - name: Remover command file ARCHIVELOG
+      raw: rm -f /tmp/rman_arch_{{ oracle_sid }}.rcv
+      changed_when: false
+
   when: backup_type == "archivelog"
 
 # =========================================================
@@ -75,6 +87,23 @@
 # =========================================================
 
 - block:
+
+    - name: Criar command file FULL
+      raw: |
+        cat <<EOF > /tmp/rman_full_{{ oracle_sid }}.rcv
+        RUN {
+          allocate channel d1 type disk format '{{ instance_base_dir }}/bkp_full_%d_%U.rman' MAXPIECESIZE 64G;
+          allocate channel d2 type disk format '{{ instance_base_dir }}/bkp_full_%d_%U.rman' MAXPIECESIZE 64G;
+
+          BACKUP AS COMPRESSED BACKUPSET
+          INCREMENTAL LEVEL 0
+          DATABASE PLUS ARCHIVELOG;
+
+          release channel d1;
+          release channel d2;
+        }
+        exit;
+        EOF
 
     - name: Executar backup FULL
       raw: |
@@ -87,16 +116,9 @@
 
         echo $LOG > $TMPFILE
 
-        printf '%s\n' \
-        'RUN {' \
-        "allocate channel d1 type disk format '{{ instance_base_dir }}/bkp_full_%d_%U.rman' MAXPIECESIZE 64G;" \
-        "allocate channel d2 type disk format '{{ instance_base_dir }}/bkp_full_%d_%U.rman' MAXPIECESIZE 64G;" \
-        'BACKUP AS COMPRESSED BACKUPSET INCREMENTAL LEVEL 0 DATABASE PLUS ARCHIVELOG;' \
-        'release channel d1;' \
-        'release channel d2;' \
-        '}' \
-        'exit;' \
-        | $ORACLE_HOME/bin/rman target / log=${LOG}
+        $ORACLE_HOME/bin/rman target / \
+          cmdfile=/tmp/rman_full_{{ oracle_sid }}.rcv \
+          log=${LOG}
 
       register: full_exec
       retries: 2
@@ -124,6 +146,10 @@
       when:
         - check_full.stdout not in ["", "LOG_NOT_FOUND"]
 
+    - name: Remover command file FULL
+      raw: rm -f /tmp/rman_full_{{ oracle_sid }}.rcv
+      changed_when: false
+
   when: backup_type == "full"
 
 # =========================================================
@@ -131,6 +157,22 @@
 # =========================================================
 
 - block:
+
+    - name: Criar command file CLEANUP
+      raw: |
+        cat <<EOF > /tmp/rman_cleanup_{{ oracle_sid }}.rcv
+        CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;
+
+        CROSSCHECK ARCHIVELOG ALL;
+        DELETE NOPROMPT EXPIRED ARCHIVELOG ALL;
+
+        CROSSCHECK BACKUP;
+        DELETE NOPROMPT EXPIRED BACKUP;
+
+        DELETE NOPROMPT OBSOLETE;
+
+        exit;
+        EOF
 
     - name: Executar cleanup RMAN
       raw: |
@@ -143,15 +185,9 @@
 
         echo $LOG > $TMPFILE
 
-        printf '%s\n' \
-        'CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;' \
-        'CROSSCHECK ARCHIVELOG ALL;' \
-        'DELETE NOPROMPT EXPIRED ARCHIVELOG ALL;' \
-        'CROSSCHECK BACKUP;' \
-        'DELETE NOPROMPT EXPIRED BACKUP;' \
-        'DELETE NOPROMPT OBSOLETE;' \
-        'exit;' \
-        | $ORACLE_HOME/bin/rman target / log=${LOG}
+        $ORACLE_HOME/bin/rman target / \
+          cmdfile=/tmp/rman_cleanup_{{ oracle_sid }}.rcv \
+          log=${LOG}
 
       register: cleanup_exec
       retries: 2
@@ -178,6 +214,10 @@
         msg: "Erro RMAN CLEANUP SID {{ oracle_sid }}: {{ check_cleanup.stdout }}"
       when:
         - check_cleanup.stdout not in ["", "LOG_NOT_FOUND"]
+
+    - name: Remover command file CLEANUP
+      raw: rm -f /tmp/rman_cleanup_{{ oracle_sid }}.rcv
+      changed_when: false
 
   when: backup_type == "cleanup"
 
