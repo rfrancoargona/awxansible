@@ -7,7 +7,7 @@
 
     - name: Criar diretório web
       file:
-        path: /var/www/html/awx
+        path: /runner/project/reports
         state: directory
         mode: '0755'
 
