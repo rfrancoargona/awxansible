@@ -44,7 +44,7 @@
     export ORACLE_HOME={{ oracle_home }}
     export PATH=$ORACLE_HOME/bin:$PATH
 
-    echo "select status from v\\$instance;" | \
+    echo "select status from v\$instance;" | \
     $ORACLE_HOME/bin/sqlplus -s / as sysdba
   register: db_status
 
