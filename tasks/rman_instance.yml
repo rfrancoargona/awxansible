@@ -1,3 +1,4 @@
+```yaml
 ---
 - name: Definir variáveis da instância
   set_fact:
@@ -21,25 +22,36 @@
 
     - name: Executar backup ARCHIVELOG
       raw: |
+        set -e
+
         export ORACLE_SID={{ oracle_sid }}
         export ORACLE_HOME={{ oracle_home }}
         export PATH=$ORACLE_HOME/bin:$PATH
 
         LOG={{ log_dir }}/backup_archivelog_{{ oracle_sid }}_{{ DATA }}.log
-        TMPFILE=/tmp/rman_arch_{{ oracle_sid }}.logpath
 
-        echo $LOG > $TMPFILE
+        cat <<EOF > /tmp/rman_arch_{{ oracle_sid }}.rcv
+        RUN {
+          allocate channel d1 device type disk
+          format '{{ instance_base_dir }}/bkp_arc_%d_%U.rman'
+          MAXPIECESIZE 64G;
 
-        printf '%s\n' \
-        'RUN {' \
-        "allocate channel d1 type disk format ''{{ instance_base_dir }}/bkp_arc_%d_%U.rman'' MAXPIECESIZE 64G;" \
-        "allocate channel d2 type disk format ''{{ instance_base_dir }}/bkp_arc_%d_%U.rman'' MAXPIECESIZE 64G;" \
-        'BACKUP ARCHIVELOG ALL DELETE INPUT;' \
-        'release channel d1;' \
-        'release channel d2;' \
-        '}' \
-        'exit;' \
-        | $ORACLE_HOME/bin/rman target / log=${LOG}
+          allocate channel d2 device type disk
+          format '{{ instance_base_dir }}/bkp_arc_%d_%U.rman'
+          MAXPIECESIZE 64G;
+
+          BACKUP ARCHIVELOG ALL DELETE INPUT;
+
+          release channel d1;
+          release channel d2;
+        }
+
+        exit;
+        EOF
+
+        $ORACLE_HOME/bin/rman target / \
+          cmdfile=/tmp/rman_arch_{{ oracle_sid }}.rcv \
+          log=${LOG}
 
       register: arch_exec
       retries: 2
@@ -48,15 +60,16 @@
 
     - name: Validar log ARCHIVELOG
       raw: |
-        LOG=$(cat /tmp/rman_arch_{{ oracle_sid }}.logpath 2>/dev/null)
+        LOG={{ log_dir }}/backup_archivelog_{{ oracle_sid }}_{{ DATA }}.log
 
-        if [ -z "$LOG" ] || [ ! -f "$LOG" ]; then
-          echo "LOG_NOT_FOUND"
+        if [ ! -f "$LOG" ]; then
+          echo LOG_NOT_FOUND
           exit 0
         fi
 
         grep -E "RMAN-|ORA-" "$LOG" \
-        | grep -v -E "RMAN-08137|RMAN-08120|RMAN-08591|ORA-19606" \
+        | grep -v -E \
+        "RMAN-08137|RMAN-08120|RMAN-08591|ORA-19606" \
         || true
 
       register: check_arch
@@ -77,25 +90,39 @@
 
     - name: Executar backup FULL
       raw: |
+        set -e
+
         export ORACLE_SID={{ oracle_sid }}
         export ORACLE_HOME={{ oracle_home }}
         export PATH=$ORACLE_HOME/bin:$PATH
 
         LOG={{ log_dir }}/backup_full_{{ oracle_sid }}_{{ DATA }}.log
-        TMPFILE=/tmp/rman_full_{{ oracle_sid }}.logpath
 
-        echo $LOG > $TMPFILE
+        cat <<EOF > /tmp/rman_full_{{ oracle_sid }}.rcv
+        RUN {
 
-        printf '%s\n' \
-        'RUN {' \
-        "allocate channel d1 type disk format ''{{ instance_base_dir }}/bkp_full_%d_%U.rman'' MAXPIECESIZE 64G;" \
-        "allocate channel d2 type disk format ''{{ instance_base_dir }}/bkp_full_%d_%U.rman'' MAXPIECESIZE 64G;" \
-        'BACKUP AS COMPRESSED BACKUPSET INCREMENTAL LEVEL 0 DATABASE PLUS ARCHIVELOG;' \
-        'release channel d1;' \
-        'release channel d2;' \
-        '}' \
-        'exit;' \
-        | $ORACLE_HOME/bin/rman target / log=${LOG}
+          allocate channel d1 device type disk
+          format '{{ instance_base_dir }}/bkp_full_%d_%U.rman'
+          MAXPIECESIZE 64G;
+
+          allocate channel d2 device type disk
+          format '{{ instance_base_dir }}/bkp_full_%d_%U.rman'
+          MAXPIECESIZE 64G;
+
+          BACKUP AS COMPRESSED BACKUPSET
+          INCREMENTAL LEVEL 0
+          DATABASE PLUS ARCHIVELOG;
+
+          release channel d1;
+          release channel d2;
+        }
+
+        exit;
+        EOF
+
+        $ORACLE_HOME/bin/rman target / \
+          cmdfile=/tmp/rman_full_{{ oracle_sid }}.rcv \
+          log=${LOG}
 
       register: full_exec
       retries: 2
@@ -104,15 +131,16 @@
 
     - name: Validar log FULL
       raw: |
-        LOG=$(cat /tmp/rman_full_{{ oracle_sid }}.logpath 2>/dev/null)
+        LOG={{ log_dir }}/backup_full_{{ oracle_sid }}_{{ DATA }}.log
 
-        if [ -z "$LOG" ] || [ ! -f "$LOG" ]; then
-          echo "LOG_NOT_FOUND"
+        if [ ! -f "$LOG" ]; then
+          echo LOG_NOT_FOUND
           exit 0
         fi
 
         grep -E "RMAN-|ORA-" "$LOG" \
-        | grep -v -E "RMAN-08137|RMAN-08120|RMAN-08591|ORA-19606" \
+        | grep -v -E \
+        "RMAN-08137|RMAN-08120|RMAN-08591|ORA-19606" \
         || true
 
       register: check_full
@@ -133,24 +161,35 @@
 
     - name: Executar cleanup RMAN
       raw: |
+        set -e
+
         export ORACLE_SID={{ oracle_sid }}
         export ORACLE_HOME={{ oracle_home }}
         export PATH=$ORACLE_HOME/bin:$PATH
 
         LOG={{ log_dir }}/cleanup_{{ oracle_sid }}_{{ DATA }}.log
-        TMPFILE=/tmp/rman_cleanup_{{ oracle_sid }}.logpath
 
-        echo $LOG > $TMPFILE
+        cat <<EOF > /tmp/rman_cleanup_{{ oracle_sid }}.rcv
 
-        printf '%s\n' \
-        'CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;' \
-        'CROSSCHECK ARCHIVELOG ALL;' \
-        'DELETE NOPROMPT EXPIRED ARCHIVELOG ALL;' \
-        'CROSSCHECK BACKUP;' \
-        'DELETE NOPROMPT EXPIRED BACKUP;' \
-        'DELETE NOPROMPT OBSOLETE DEVICE TYPE DISK;' \
-        'exit;' \
-        | $ORACLE_HOME/bin/rman target / log=${LOG}
+        CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;
+
+        CROSSCHECK ARCHIVELOG ALL;
+        DELETE NOPROMPT EXPIRED ARCHIVELOG ALL;
+
+        CROSSCHECK BACKUP;
+        DELETE NOPROMPT EXPIRED BACKUP;
+
+        CROSSCHECK COPY;
+        DELETE NOPROMPT EXPIRED COPY;
+
+        DELETE NOPROMPT OBSOLETE DEVICE TYPE DISK;
+
+        exit;
+        EOF
+
+        $ORACLE_HOME/bin/rman target / \
+          cmdfile=/tmp/rman_cleanup_{{ oracle_sid }}.rcv \
+          log=${LOG}
 
       register: cleanup_exec
       retries: 2
@@ -159,15 +198,16 @@
 
     - name: Validar log CLEANUP
       raw: |
-        LOG=$(cat /tmp/rman_cleanup_{{ oracle_sid }}.logpath 2>/dev/null)
+        LOG={{ log_dir }}/cleanup_{{ oracle_sid }}_{{ DATA }}.log
 
-        if [ -z "$LOG" ] || [ ! -f "$LOG" ]; then
-          echo "LOG_NOT_FOUND"
+        if [ ! -f "$LOG" ]; then
+          echo LOG_NOT_FOUND
           exit 0
         fi
 
         grep -E "RMAN-|ORA-" "$LOG" \
-        | grep -v -E "RMAN-08137|RMAN-08120|RMAN-08591|ORA-19606" \
+        | grep -v -E \
+        "RMAN-08137|RMAN-08120|RMAN-08591|ORA-19606" \
         || true
 
       register: check_cleanup
@@ -193,3 +233,4 @@
       'status_class': 'success',
       'log': log_dir
     } ] }}"
+```
