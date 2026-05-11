@@ -175,26 +175,36 @@
       format '{{ base_dir }}/bkp_full_%d_%U.rman'
       MAXPIECESIZE 64G;
 
+      allocate channel d3 type disk
+      format '{{ base_dir }}/bkp_full_%d_%U.rman'
+      MAXPIECESIZE 64G;
+
+      allocate channel d4 type disk
+      format '{{ base_dir }}/bkp_full_%d_%U.rman'
+      MAXPIECESIZE 64G;
+
       BACKUP AS COMPRESSED BACKUPSET
       INCREMENTAL LEVEL 0
       DATABASE PLUS ARCHIVELOG;
 
       release channel d1;
       release channel d2;
+      release channel d3;
+      release channel d4;
 
-      allocate channel d3 type disk;
+      allocate channel d5 type disk;
 
       backup spfile
       format '{{ base_dir }}/backup%d_%s_%p_%c_%t.spfile.rman';
 
-      release channel d3;
+      release channel d5;
 
-      allocate channel d4 type disk;
+      allocate channel d6 type disk;
 
       backup current controlfile
       format '{{ base_dir }}/bkp_ctl_%d_%D%M%Y%t.rman';
 
-      release channel d4;
+      release channel d6;
 
     }
 
