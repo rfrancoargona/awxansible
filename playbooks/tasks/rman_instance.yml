@@ -78,11 +78,11 @@
 
       allocate channel d1 type disk
       format '{{ base_dir }}/bkp_arc_%d_%U.rman'
-      MAXPIECESIZE 64G;
+      MAXPIECESIZE 30G;
 
       allocate channel d2 type disk
       format '{{ base_dir }}/bkp_arc_%d_%U.rman'
-      MAXPIECESIZE 64G;
+      MAXPIECESIZE 30G;
 
       BACKUP ARCHIVELOG ALL DELETE INPUT;
 
@@ -169,19 +169,19 @@
 
       allocate channel d1 type disk
       format '{{ base_dir }}/bkp_full_%d_%U.rman'
-      MAXPIECESIZE 64G;
+      MAXPIECESIZE 30G;
 
       allocate channel d2 type disk
       format '{{ base_dir }}/bkp_full_%d_%U.rman'
-      MAXPIECESIZE 64G;
+      MAXPIECESIZE 30G;
 
       allocate channel d3 type disk
       format '{{ base_dir }}/bkp_full_%d_%U.rman'
-      MAXPIECESIZE 64G;
+      MAXPIECESIZE 30G;
 
       allocate channel d4 type disk
       format '{{ base_dir }}/bkp_full_%d_%U.rman'
-      MAXPIECESIZE 64G;
+      MAXPIECESIZE 30G;
 
       BACKUP AS COMPRESSED BACKUPSET
       INCREMENTAL LEVEL 0
