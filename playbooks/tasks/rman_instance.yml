@@ -1,87 +1,73 @@
 ---
-- name: Oracle RMAN Backup Enterprise
-  hosts: all
+- name: Validar variavel oracle_instances
+  fail:
+    msg: "Variavel oracle_instances nao definida no host"
+  when: oracle_instances is not defined
 
-  gather_facts: no
+- name: Exibir instancias configuradas
+  debug:
+    msg: "{{ item.sid }}"
+  loop: "{{ oracle_instances }}"
 
-  become: yes
-  become_method: sudo
-  become_user: oracle
+# ==========================================================
+# FULL
+# ==========================================================
+- name: Executar backup FULL
+  shell: |
+    /home/oracle/scripts/bkp_full_{{ item.sid }}.sh
+  args:
+    executable: /bin/bash
+  register: full_result
+  loop: "{{ oracle_instances }}"
+  when: backup_type == "full"
 
-  vars:
-    backup_type: "{{ tipo_backup }}"
+- name: Exibir retorno FULL
+  debug:
+    msg:
+      - "SID: {{ item.item.sid }}"
+      - "RC: {{ item.rc }}"
+      - "{{ item.stdout_lines }}"
+  loop: "{{ full_result.results | default([]) }}"
+  when: backup_type == "full"
 
-  tasks:
+# ==========================================================
+# ARCHIVELOG
+# ==========================================================
+- name: Executar backup ARCHIVELOG
+  shell: |
+    /home/oracle/scripts/bkp_arc_{{ item.sid }}.sh
+  args:
+    executable: /bin/bash
+  register: arch_result
+  loop: "{{ oracle_instances }}"
+  when: backup_type == "archivelog"
 
-    - name: Validar variavel oracle_instances
-      fail:
-        msg: "Variavel oracle_instances nao definida no host"
-      when: oracle_instances is not defined
+- name: Exibir retorno ARCHIVELOG
+  debug:
+    msg:
+      - "SID: {{ item.item.sid }}"
+      - "RC: {{ item.rc }}"
+      - "{{ item.stdout_lines }}"
+  loop: "{{ arch_result.results | default([]) }}"
+  when: backup_type == "archivelog"
 
-    - name: Exibir instancias configuradas
-      debug:
-        msg: "{{ item.sid }}"
-      loop: "{{ oracle_instances }}"
+# ==========================================================
+# CLEANUP
+# ==========================================================
+- name: Executar cleanup RMAN
+  shell: |
+    /home/oracle/scripts/cleanup_{{ item.sid }}.sh
+  args:
+    executable: /bin/bash
+  register: cleanup_result
+  loop: "{{ oracle_instances }}"
+  when: backup_type == "cleanup"
 
-    # ==========================================================
-    # FULL
-    # ==========================================================
-    - name: Executar backup FULL
-      shell: |
-        /home/oracle/scripts/bkp_full_{{ item.sid }}.sh
-      args:
-        executable: /bin/bash
-      register: full_result
-      loop: "{{ oracle_instances }}"
-      when: backup_type == "full"
-
-    - name: Exibir retorno FULL
-      debug:
-        msg:
-          - "SID: {{ item.item.sid }}"
-          - "RC: {{ item.rc }}"
-          - "{{ item.stdout_lines }}"
-      loop: "{{ full_result.results | default([]) }}"
-      when: backup_type == "full"
-
-    # ==========================================================
-    # ARCHIVELOG
-    # ==========================================================
-    - name: Executar backup ARCHIVELOG
-      shell: |
-        /home/oracle/scripts/bkp_arc_{{ item.sid }}.sh
-      args:
-        executable: /bin/bash
-      register: arch_result
-      loop: "{{ oracle_instances }}"
-      when: backup_type == "archivelog"
-
-    - name: Exibir retorno ARCHIVELOG
-      debug:
-        msg:
-          - "SID: {{ item.item.sid }}"
-          - "RC: {{ item.rc }}"
-          - "{{ item.stdout_lines }}"
-      loop: "{{ arch_result.results | default([]) }}"
-      when: backup_type == "archivelog"
-
-    # ==========================================================
-    # CLEANUP
-    # ==========================================================
-    - name: Executar cleanup RMAN
-      shell: |
-        /home/oracle/scripts/cleanup_{{ item.sid }}.sh
-      args:
-        executable: /bin/bash
-      register: cleanup_result
-      loop: "{{ oracle_instances }}"
-      when: backup_type == "cleanup"
-
-    - name: Exibir retorno CLEANUP
-      debug:
-        msg:
-          - "SID: {{ item.item.sid }}"
-          - "RC: {{ item.rc }}"
-          - "{{ item.stdout_lines }}"
-      loop: "{{ cleanup_result.results | default([]) }}"
-      when: backup_type == "cleanup"
+- name: Exibir retorno CLEANUP
+  debug:
+    msg:
+      - "SID: {{ item.item.sid }}"
+      - "RC: {{ item.rc }}"
+      - "{{ item.stdout_lines }}"
+  loop: "{{ cleanup_result.results | default([]) }}"
+  when: backup_type == "cleanup"
