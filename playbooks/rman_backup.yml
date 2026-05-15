@@ -1,8 +1,11 @@
+---
 - name: Oracle RMAN Enterprise Backup
   hosts: all
+
   gather_facts: no
 
   become: yes
+  become_method: sudo
   become_user: oracle
 
   vars:
@@ -10,8 +13,4 @@
 
   tasks:
 
-    - name: Executar backup por instância
-      include_tasks: tasks/rman_instance.yml
-      loop: "{{ oracle_instances }}"
-      loop_control:
-        loop_var: oracle_db
+    - include_tasks: tasks/rman_instance.yml
