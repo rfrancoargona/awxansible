@@ -1,311 +1,87 @@
-# =========================================================
-# VARIAVEIS
-# =========================================================
-
-- name: Definir variáveis da instância
-  set_fact:
-    oracle_sid: "{{ oracle_db.sid }}"
-    oracle_home: "{{ oracle_db.oracle_home }}"
-    base_dir: "/mnt/oracle_FLZ001/oracle/prd/{{ oracle_db.sid }}"
-    log_dir: "/mnt/oracle_FLZ001/oracle/prd/{{ oracle_db.sid }}/logs"
-
-# =========================================================
-# VALIDAR ORACLE_HOME
-# =========================================================
-
-- name: Validar ORACLE_HOME
-  raw: |
-    if [ ! -d "{{ oracle_home }}" ]; then
-      echo "ORACLE_HOME_INVALID"
-      exit 1
-    fi
-  register: check_home
-  failed_when: "'ORACLE_HOME_INVALID' in check_home.stdout"
-
-# =========================================================
-# GARANTIR DIRETORIOS
-# =========================================================
-
-- name: Garantir diretório base
-  raw: mkdir -p {{ base_dir }}
-  changed_when: false
-
-- name: Garantir diretório de logs
-  raw: mkdir -p {{ log_dir }}
-  changed_when: false
-
-# =========================================================
-# VALIDAR INSTANCIA
-# =========================================================
-
-- name: Validar instância Oracle
-  raw: |
-    export ORACLE_SID={{ oracle_sid }}
-    export ORACLE_HOME={{ oracle_home }}
-    export PATH=$ORACLE_HOME/bin:$PATH
-
-    echo "select status from v\$instance;" | \
-    $ORACLE_HOME/bin/sqlplus -s / as sysdba
-  register: db_status
-
-- name: Exibir status banco
-  debug:
-    msg: "{{ oracle_sid }} -> {{ db_status.stdout_lines }}"
-
-# =========================================================
-# ARCHIVELOG
-# =========================================================
-
-- name: Executar backup ARCHIVELOG
-  raw: |
-    export ORACLE_SID={{ oracle_sid }}
-    export ORACLE_HOME={{ oracle_home }}
-    export PATH=$ORACLE_HOME/bin:$PATH
-
-    DATA=$(date "+%Y%m%d_%H%M")
-
-    LOG={{ log_dir }}/backup_archivelog_{{ oracle_sid }}_${DATA}.log
-
-    TMPFILE=/tmp/rman_arch_{{ oracle_sid }}.logpath
-
-    echo $LOG > $TMPFILE
-
-    $ORACLE_HOME/bin/rman target / log=${LOG} <<EOF
-
-    RUN {
-
-      sql 'alter system archive log current';
-
-      allocate channel d1 type disk
-      format '{{ base_dir }}/bkp_arc_%d_%U.rman'
-      MAXPIECESIZE 30G;
-
-      allocate channel d2 type disk
-      format '{{ base_dir }}/bkp_arc_%d_%U.rman'
-      MAXPIECESIZE 30G;
-
-      BACKUP ARCHIVELOG ALL DELETE INPUT;
-
-      release channel d1;
-      release channel d2;
-
-      allocate channel d3 type disk;
-
-      backup spfile
-      format '{{ base_dir }}/backup%d_%s_%p_%c_%t.spfile.rman';
-
-      release channel d3;
-
-      allocate channel d4 type disk;
-
-      backup current controlfile
-      format '{{ base_dir }}/bkp_ctl_%d_%D%M%Y%t.rman';
-
-      release channel d4;
-
-    }
-
-    exit;
-    EOF
-  when: backup_type == "archivelog"
-
-# =========================================================
-# VALIDAR ARCHIVELOG
-# =========================================================
-
-- name: Validar log ARCHIVELOG
-  raw: |
-    TMPFILE=/tmp/rman_arch_{{ oracle_sid }}.logpath
-
-    if [ ! -f "$TMPFILE" ]; then
-      echo "LOG_NOT_FOUND"
-      exit 0
-    fi
-
-    LOG=$(cat $TMPFILE)
-
-    if [ ! -f "$LOG" ]; then
-      echo "LOG_NOT_FOUND"
-      exit 0
-    fi
-
-    grep -E "RMAN-|ORA-" "$LOG" \
-    | grep -v -E "RMAN-08137|RMAN-08120" \
-    || true
-  register: check_arch
-  when: backup_type == "archivelog"
-
-- name: Falhar se erro ARCHIVELOG
-  fail:
-    msg: "Erro RMAN ARCHIVELOG {{ oracle_sid }}: {{ check_arch.stdout }}"
-  when:
-    - backup_type == "archivelog"
-    - check_arch.stdout != ""
-    - check_arch.stdout != "LOG_NOT_FOUND"
-
-# =========================================================
-# FULL
-# =========================================================
-
-- name: Executar backup FULL
-  raw: |
-    export ORACLE_SID={{ oracle_sid }}
-    export ORACLE_HOME={{ oracle_home }}
-    export PATH=$ORACLE_HOME/bin:$PATH
-
-    DATA=$(date "+%Y%m%d_%H%M")
-
-    LOG={{ log_dir }}/backup_full_{{ oracle_sid }}_${DATA}.log
-
-    TMPFILE=/tmp/rman_full_{{ oracle_sid }}.logpath
-
-    echo $LOG > $TMPFILE
-
-    $ORACLE_HOME/bin/rman target / log=${LOG} <<EOF
-
-    RUN {
-
-      sql 'alter system archive log current';
-
-      allocate channel d1 type disk
-      format '{{ base_dir }}/bkp_full_%d_%U.rman'
-      MAXPIECESIZE 30G;
-
-      allocate channel d2 type disk
-      format '{{ base_dir }}/bkp_full_%d_%U.rman'
-      MAXPIECESIZE 30G;
-
-      allocate channel d3 type disk
-      format '{{ base_dir }}/bkp_full_%d_%U.rman'
-      MAXPIECESIZE 30G;
-
-      allocate channel d4 type disk
-      format '{{ base_dir }}/bkp_full_%d_%U.rman'
-      MAXPIECESIZE 30G;
-
-      BACKUP AS COMPRESSED BACKUPSET
-      INCREMENTAL LEVEL 0
-      DATABASE PLUS ARCHIVELOG;
-
-      release channel d1;
-      release channel d2;
-      release channel d3;
-      release channel d4;
-
-      allocate channel d5 type disk;
-
-      backup spfile
-      format '{{ base_dir }}/backup%d_%s_%p_%c_%t.spfile.rman';
-
-      release channel d5;
-
-      allocate channel d6 type disk;
-
-      backup current controlfile
-      format '{{ base_dir }}/bkp_ctl_%d_%D%M%Y%t.rman';
-
-      release channel d6;
-
-    }
-
-    exit;
-    EOF
-  when: backup_type == "full"
-
-# =========================================================
-# VALIDAR FULL
-# =========================================================
-
-- name: Validar log FULL
-  raw: |
-    TMPFILE=/tmp/rman_full_{{ oracle_sid }}.logpath
-
-    if [ ! -f "$TMPFILE" ]; then
-      echo "LOG_NOT_FOUND"
-      exit 0
-    fi
-
-    LOG=$(cat $TMPFILE)
-
-    if [ ! -f "$LOG" ]; then
-      echo "LOG_NOT_FOUND"
-      exit 0
-    fi
-
-    grep -E "RMAN-|ORA-" "$LOG" \
-    | grep -v -E "RMAN-08137|RMAN-08120" \
-    || true
-  register: check_full
-  when: backup_type == "full"
-
-- name: Falhar se erro FULL
-  fail:
-    msg: "Erro RMAN FULL {{ oracle_sid }}: {{ check_full.stdout }}"
-  when:
-    - backup_type == "full"
-    - check_full.stdout != ""
-    - check_full.stdout != "LOG_NOT_FOUND"
-
-# =========================================================
-# CLEANUP
-# =========================================================
-
-- name: Executar cleanup RMAN
-  raw: |
-    export ORACLE_SID={{ oracle_sid }}
-    export ORACLE_HOME={{ oracle_home }}
-    export PATH=$ORACLE_HOME/bin:$PATH
-
-    DATA=$(date "+%Y%m%d_%H%M")
-
-    LOG={{ log_dir }}/cleanup_{{ oracle_sid }}_${DATA}.log
-
-    TMPFILE=/tmp/rman_cleanup_{{ oracle_sid }}.logpath
-
-    echo $LOG > $TMPFILE
-
-    $ORACLE_HOME/bin/rman target / log=${LOG} <<EOF
-
-    CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 30 DAYS;
-
-    CROSSCHECK BACKUP;
-
-    DELETE NOPROMPT OBSOLETE DEVICE TYPE DISK;
-
-    exit;
-    EOF
-  when: backup_type == "cleanup"
-
-# =========================================================
-# VALIDAR CLEANUP
-# =========================================================
-
-- name: Validar log CLEANUP
-  raw: |
-    TMPFILE=/tmp/rman_cleanup_{{ oracle_sid }}.logpath
-
-    if [ ! -f "$TMPFILE" ]; then
-      echo "LOG_NOT_FOUND"
-      exit 0
-    fi
-
-    LOG=$(cat $TMPFILE)
-
-    if [ ! -f "$LOG" ]; then
-      echo "LOG_NOT_FOUND"
-      exit 0
-    fi
-
-    grep -E "RMAN-|ORA-" "$LOG" \
-    | grep -v -E "RMAN-08137|RMAN-08120" \
-    || true
-  register: check_cleanup
-  when: backup_type == "cleanup"
-
-- name: Falhar se erro CLEANUP
-  fail:
-    msg: "Erro RMAN CLEANUP {{ oracle_sid }}: {{ check_cleanup.stdout }}"
-  when:
-    - backup_type == "cleanup"
-    - check_cleanup.stdout != ""
-    - check_cleanup.stdout != "LOG_NOT_FOUND"
+---
+- name: Oracle RMAN Backup Enterprise
+  hosts: all
+
+  gather_facts: no
+
+  become: yes
+  become_method: sudo
+  become_user: oracle
+
+  vars:
+    backup_type: "{{ tipo_backup }}"
+
+  tasks:
+
+    - name: Validar variavel oracle_instances
+      fail:
+        msg: "Variavel oracle_instances nao definida no host"
+      when: oracle_instances is not defined
+
+    - name: Exibir instancias configuradas
+      debug:
+        msg: "{{ item.sid }}"
+      loop: "{{ oracle_instances }}"
+
+    # ==========================================================
+    # FULL
+    # ==========================================================
+    - name: Executar backup FULL
+      shell: |
+        /home/oracle/scripts/bkp_full_{{ item.sid }}.sh
+      args:
+        executable: /bin/bash
+      register: full_result
+      loop: "{{ oracle_instances }}"
+      when: backup_type == "full"
+
+    - name: Exibir retorno FULL
+      debug:
+        msg:
+          - "SID: {{ item.item.sid }}"
+          - "RC: {{ item.rc }}"
+          - "{{ item.stdout_lines }}"
+      loop: "{{ full_result.results | default([]) }}"
+      when: backup_type == "full"
+
+    # ==========================================================
+    # ARCHIVELOG
+    # ==========================================================
+    - name: Executar backup ARCHIVELOG
+      shell: |
+        /home/oracle/scripts/bkp_arc_{{ item.sid }}.sh
+      args:
+        executable: /bin/bash
+      register: arch_result
+      loop: "{{ oracle_instances }}"
+      when: backup_type == "archivelog"
+
+    - name: Exibir retorno ARCHIVELOG
+      debug:
+        msg:
+          - "SID: {{ item.item.sid }}"
+          - "RC: {{ item.rc }}"
+          - "{{ item.stdout_lines }}"
+      loop: "{{ arch_result.results | default([]) }}"
+      when: backup_type == "archivelog"
+
+    # ==========================================================
+    # CLEANUP
+    # ==========================================================
+    - name: Executar cleanup RMAN
+      shell: |
+        /home/oracle/scripts/cleanup_{{ item.sid }}.sh
+      args:
+        executable: /bin/bash
+      register: cleanup_result
+      loop: "{{ oracle_instances }}"
+      when: backup_type == "cleanup"
+
+    - name: Exibir retorno CLEANUP
+      debug:
+        msg:
+          - "SID: {{ item.item.sid }}"
+          - "RC: {{ item.rc }}"
+          - "{{ item.stdout_lines }}"
+      loop: "{{ cleanup_result.results | default([]) }}"
+      when: backup_type == "cleanup"
