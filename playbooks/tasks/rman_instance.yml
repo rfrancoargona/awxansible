@@ -13,10 +13,8 @@
 # FULL
 # ==========================================================
 - name: Executar backup FULL
-  shell: |
+  raw: |
     /home/oracle/scripts/bkp_full_{{ item.sid }}.sh
-  args:
-    executable: /bin/bash
   register: full_result
   loop: "{{ oracle_instances }}"
   when: backup_type == "full"
@@ -34,10 +32,8 @@
 # ARCHIVELOG
 # ==========================================================
 - name: Executar backup ARCHIVELOG
-  shell: |
+  raw: |
     /home/oracle/scripts/bkp_arc_{{ item.sid }}.sh
-  args:
-    executable: /bin/bash
   register: arch_result
   loop: "{{ oracle_instances }}"
   when: backup_type == "archivelog"
@@ -55,10 +51,8 @@
 # CLEANUP
 # ==========================================================
 - name: Executar cleanup RMAN
-  shell: |
+  raw: |
     /home/oracle/scripts/cleanup_{{ item.sid }}.sh
-  args:
-    executable: /bin/bash
   register: cleanup_result
   loop: "{{ oracle_instances }}"
   when: backup_type == "cleanup"
