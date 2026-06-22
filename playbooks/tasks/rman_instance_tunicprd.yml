@@ -14,7 +14,7 @@
 # ==========================================================
 - name: Executar backup FULL
   raw: |
-    /backup/script/backup_full.sh
+    /backup/script/backup_full_{{ item.sid }}.sh
   register: full_result
   loop: "{{ oracle_instances }}"
   when: backup_type == "full"
@@ -33,7 +33,7 @@
 # ==========================================================
 - name: Executar backup ARCHIVELOG
   raw: |
-    /backup/script/backup_arc.sh
+    /backup/script/backup_arc_{{ item.sid }}.sh
   register: arch_result
   loop: "{{ oracle_instances }}"
   when: backup_type == "archivelog"
@@ -52,7 +52,7 @@
 # ==========================================================
 - name: Executar cleanup RMAN
   raw: |
-    /home/oracle/scripts/cleanup_{{ item.sid }}.sh
+    /backup/script/cleanup_{{ item.sid }}.sh
   register: cleanup_result
   loop: "{{ oracle_instances }}"
   when: backup_type == "cleanup"
