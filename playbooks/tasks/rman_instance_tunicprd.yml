@@ -1,1 +1,67 @@
-xxx
+---
+- name: Validar variavel oracle_instances
+  fail:
+    msg: "Variavel oracle_instances nao definida no host"
+  when: oracle_instances is not defined
+
+- name: Exibir instancias configuradas
+  debug:
+    msg: "{{ item.sid }}"
+  loop: "{{ oracle_instances }}"
+
+# ==========================================================
+# FULL
+# ==========================================================
+- name: Executar backup FULL
+  raw: |
+    /backup/script/backup_full.sh
+  register: full_result
+  loop: "{{ oracle_instances }}"
+  when: backup_type == "full"
+
+- name: Exibir retorno FULL
+  debug:
+    msg:
+      - "SID: {{ item.item.sid }}"
+      - "RC: {{ item.rc }}"
+      - "{{ item.stdout_lines }}"
+  loop: "{{ full_result.results | default([]) }}"
+  when: backup_type == "full"
+
+# ==========================================================
+# ARCHIVELOG
+# ==========================================================
+- name: Executar backup ARCHIVELOG
+  raw: |
+    /backup/script/backup_arc.sh
+  register: arch_result
+  loop: "{{ oracle_instances }}"
+  when: backup_type == "archivelog"
+
+- name: Exibir retorno ARCHIVELOG
+  debug:
+    msg:
+      - "SID: {{ item.item.sid }}"
+      - "RC: {{ item.rc }}"
+      - "{{ item.stdout_lines }}"
+  loop: "{{ arch_result.results | default([]) }}"
+  when: backup_type == "archivelog"
+
+# ==========================================================
+# CLEANUP
+# ==========================================================
+- name: Executar cleanup RMAN
+  raw: |
+    /home/oracle/scripts/cleanup_{{ item.sid }}.sh
+  register: cleanup_result
+  loop: "{{ oracle_instances }}"
+  when: backup_type == "cleanup"
+
+- name: Exibir retorno CLEANUP
+  debug:
+    msg:
+      - "SID: {{ item.item.sid }}"
+      - "RC: {{ item.rc }}"
+      - "{{ item.stdout_lines }}"
+  loop: "{{ cleanup_result.results | default([]) }}"
+  when: backup_type == "cleanup"
