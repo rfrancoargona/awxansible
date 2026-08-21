@@ -65,3 +65,22 @@
       - "{{ item.stdout_lines }}"
   loop: "{{ cleanup_result.results | default([]) }}"
   when: backup_type == "cleanup"
+
+# ==========================================================
+# REPORT
+# ==========================================================
+- name: Executar report RMAN
+  raw: |
+    /home/oracle/scripts/rman_backup_report_{{ item.sid }}.sh
+  register: report_result
+  loop: "{{ oracle_instances }}"
+  when: backup_type == "report"
+
+- name: Exibir retorno REPORT
+  debug:
+    msg:
+      - "SID: {{ item.item.sid }}"
+      - "RC: {{ item.rc }}"
+      - "{{ item.stdout_lines }}"
+  loop: "{{ report_result.results | default([]) }}"
+  when: backup_type == "report"
