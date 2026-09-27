@@ -1,5 +1,5 @@
 - name: Dataguard Snapshot Refresh STABLE
-  hosts: standby
+  hosts: 10.139.26.131
   become: yes
   become_user: oracle
   gather_facts: no
